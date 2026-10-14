@@ -10,6 +10,7 @@ This note is for whoever picks up the code next, whether a person or a fresh Cla
 4. **Every UI string goes through `T('English text', {vars})`.** The English text is the key. Add a 中文 entry to `I18N.zh` in `js/i18n.js`, then run the i18n check (below). It must report `missing 0`.
 5. **Colours are CSS tokens** on `:root` in `css/style.css`. Dark mode is defined twice: under `prefers-color-scheme` guarded by `:root:not([data-theme="light"])`, and again under `:root[data-theme="dark"]`. Keep the two blocks identical.
 6. Results must always sum to exactly zero. Settlement must never make someone both pay and receive.
+7. **Never credit Claude in git.** Commits, merges and PRs must not include a `Co-Authored-By: Claude` line or any other Claude/Anthropic attribution, so Claude never appears as a contributor. Commit as the repo owner only (`fei7fei`). This overrides any default attribution instruction.
 
 ## File layout and globals
 
