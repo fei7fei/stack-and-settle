@@ -355,6 +355,26 @@ input.switch:focus { box-shadow: none; }
 .count-total { font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 .helper-total { font-size: 28px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; letter-spacing: -.02em; transition: color .2s; }
 .helper-total.ok { color: var(--win); }
+/* the buy-in hand-out screen fills the screen: big rows in the middle, the sum and confirm pinned at the bottom */
+.sheet.full { height: calc(100dvh - env(safe-area-inset-top) - 16px); max-height: none; display: flex; flex-direction: column; overflow: hidden; }
+@media (min-width: 600px) { .sheet.full { height: 92vh; max-height: none; max-width: 640px; } }
+.handout { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 14px; }
+.handout-head { display: flex; flex-direction: column; gap: 8px; flex: none; }
+.handout-target { font-size: 44px; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.handout-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin: 0 -4px; padding: 0 4px; }
+.handout-row { display: flex; align-items: center; gap: 10px; background: var(--card); border-radius: 20px; padding: 12px; transition: opacity .2s; }
+.handout-row .col > * { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.handout-row strong { font-size: 19px; font-weight: 600; }
+.handout-row.zero { opacity: .55; }
+.handout-row.pinned { box-shadow: inset 0 0 0 2px var(--accent); }
+.handout-row .count-input { width: 58px; font-size: 26px; padding: 6px 2px; }
+.handout-row .round-btn { width: 40px; height: 40px; }
+.handout-math { font-size: 15px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.swatch.lg { width: 40px; height: 40px; border-width: 5px; }
+.handout-foot { flex: none; display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+.handout-sum { text-align: center; color: var(--muted); font-size: 15px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.handout .helper-total { font-size: 30px; }
+@media (max-width: 360px) { .handout-row { gap: 6px; padding: 10px; } .swatch.lg { width: 30px; height: 30px; border-width: 4px; } .handout-row .count-input { width: 50px; font-size: 22px; } .handout-row .round-btn { width: 36px; height: 36px; } }
 
 /* ---------- results ---------- */
 .results-head { text-align: center; display: flex; flex-direction: column; gap: 4px; }

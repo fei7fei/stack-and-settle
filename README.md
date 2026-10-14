@@ -27,10 +27,10 @@ Everything else sits on the **More options** tab, all on one page, and nothing t
 ### During the game
 Everything during the game is in chips. Money only shows up in setup and in the results at the end.
 
-- **Simple mode is a list** of the players with their buy-ins and chips. Each row has a one-tap buy-in button, and **Add player** lets late arrivals join.
+- **Simple mode is a list** of the players with their buy-ins and chips. Each row has a **Buy in** button that opens that player's buy-in options, and **Add player** lets late arrivals join.
 - **Detailed mode shows an oval table** with every player in their seat. The dealer button marks a host who plays, and a house spot shows for a host who only hosts. Tap an empty seat to add a late arrival.
 - **Tap a player, tap an amount.** The buy-in is recorded straight away, and a message says which chips to hand over, with an **Undo** button. *Other* lets you type any number of chips (fixed mode only has whole buy-ins). Each buy-in in the log shows its colours, and ✎ changes them. Cash out and bust sit below; rename, payment handles, move seat, make host and remove are under **More**.
-- **Chip helper.** For each buy-in it suggests which colours to hand over, and only confirms once the chips add up to the exact amount. The suggestion spreads the colours evenly but never takes so much of one colour that the bank can't serve later buy-ins.
+- **Chip helper.** Every buy-in opens a full-screen page showing which colours to hand over, with the maths for each colour ("2 × 100 = 200") and the running sum. Change any count with −/+ or by typing, and the colours you haven't touched rebalance so the total stays exact. It only confirms once the chips add up to the exact amount. The suggestion spreads the colours evenly but never takes so much of one colour that the bank can't serve later buy-ins.
 - **Bank.** Shows how many chips of each colour the house still holds. Buy-ins take chips out and cash-outs put them back.
 - **Chip-leader rule** (optional). Only for buy-ins bigger than the standard one: the app asks for the chip leader's stack and won't sell more than that.
 - **Rake tracking.** Fees are taken in whole chips and only when the pot is big enough. The app shows which chips to pull from the pot, and the house pile has its own undo.

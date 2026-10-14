@@ -145,9 +145,8 @@
     show();
   }
 
-  /* the players and their buy-ins; in Simple mode this is the main view, with a one-tap buy-in on each row and a way to add late joiners */
+  /* the players and their buy-ins; in Simple mode this is the main view, with a buy-in button on each row and a way to add late joiners */
   function playerList(main) {
-    const c = cfg();
     const leader = rebuyLeader();
     const ps = seated().slice().sort((a, b) => a.seat - b.seat);
     if (!ps.length && !main) return null;
@@ -163,8 +162,8 @@
           h('td', { class: 'num' }, U.fmtChips(Core.paidChips(p))),
           main ? h('td', { class: 'num' }, p.cashedOut ? null : h('button', {
             class: 'btn small', 'aria-label': T('Buy-in for {name}', { name: p.name }),
-            onclick: e => { e.stopPropagation(); buy(p.pid, c.handChips); },
-          }, '+' + U.fmtChips(c.handChips))) : null)))),
+            onclick: e => { e.stopPropagation(); panel(p.pid); },
+          }, T('Buy in'))) : null)))),
       main ? h('button', { class: 'btn ghost block', onclick: () => lateJoiner(null) }, '+ ' + T('Add player')) : null);
   }
 
@@ -247,7 +246,7 @@
     return cfg().colours.reduce((s, col) => s + (bank[col.id] != null ? bank[col.id] * col.chips : 0), 0);
   }
 
-  /* Buy-in buttons in the player panel: one tap records the buy-in with a suggested colour mix.
+  /* Buy-in buttons in the player panel: each opens the hand-out screen with a suggested colour mix.
      Fixed mode: whole buy-ins only. Otherwise quick amounts plus "Other" for any number of chips. */
   function buyBox(pid, panelApi, st) {
     const c = cfg(), rules = c.buyin || {};
@@ -324,16 +323,9 @@
     });
   }
 
-  /* one tap: record the buy-in with the suggested mix and say which chips to hand over (with Undo).
-     When the mix can't be made from the bank or at all, open the colour helper instead. */
+  /* a buy-in: check the chip-leader rule, then show the host which chips to hand over */
   function buy(pid, chips, panelApi) {
-    leaderCheck(pid, chips).then(n => {
-      if (!n) return;
-      const c = cfg();
-      const sugg = Core.bankMix(n, c.colours, Core.bank(g()), bankSlots(pid));
-      if (sugg.remainder || sugg.short) { buyIn(pid, n, panelApi); return; }
-      record(pid, n, sugg.mix, panelApi);
-    });
+    leaderCheck(pid, chips).then(n => { if (n) buyIn(pid, n, panelApi); });
   }
   function record(pid, chips, mix, panelApi) {
     const c = cfg(), p = player(pid), id = U.uid();
@@ -346,7 +338,7 @@
     if (panelApi) panelApi.refresh();
   }
 
-  /* the colour helper, for buy-ins one tap can't handle (or free mode) */
+  /* the full-screen hand-out screen: suggested colours, editable counts, free mode */
   function buyIn(pid, chips, panelApi) {
     const c = cfg();
     Helper.open({

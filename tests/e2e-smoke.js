@@ -124,9 +124,15 @@ window.sw = (label, on) => { const r = $all('.toggle-row').find(x => x.textConte
   await shot('08-table');
 
   await step('everyone buys in', `btn('Everyone buys in'); await wait(350); const mix = sheet().querySelector('.big-mix').textContent; btn('Confirm', sheet()); return [Core.issuedChips(S.db.current), mix];`);
-  await step('ben rebuys 1,000 in one tap', `const ben = S.db.current.players.find(p => p.name === 'Ben'); seat(ben.seat); await wait(350); btn('+1,000', sheet()); await wait(150);
+  await step('ben rebuys 1,000: hand-out screen', `const ben = S.db.current.players.find(p => p.name === 'Ben'); seat(ben.seat); await wait(350); btn('+1,000', sheet()); await wait(350);
+    const s = sheet(); return [s.classList.contains('full'), s.querySelector('.handout-target').textContent, s.querySelector('.helper-total').textContent, s.querySelector('.handout-sum').textContent];`);
+  await shot('09-handout');
+  await step('change a count: the rest rebalance', `const s = sheet(); const ins = s.querySelectorAll('.handout-row .count-input'); type(ins[ins.length - 1], '8'); await wait(50);
+    const r = [s.querySelector('.helper-total').textContent, s.querySelector('.handout-sum').textContent, s.querySelectorAll('.handout-row.pinned').length];
+    btn('Reset to suggested', s); await wait(50); r.push(s.querySelectorAll('.handout-row.pinned').length); return r;`);
+  await shot('09-handout-edit');
+  await step('confirm the rebuy', `btn('Confirm', sheet()); await wait(150);
     return [Core.paidChips(S.db.current.players.find(p => p.name === 'Ben')), $q('.toast').textContent];`);
-  await shot('09-one-tap');
   await step('big buy-in asks for the chip leader', `btn('+2,000', sheet()); await wait(350); const s = sheet(); type(s.querySelector('input'), '1500'); await wait(50);
     const a = [s.querySelector('h3').textContent, s.querySelector('.bad-text').textContent, s.querySelector('.btn.primary').textContent];
     type(s.querySelector('input'), '99999'); await wait(50); a.push(s.querySelector('.btn.primary').disabled); return a;`);
@@ -186,13 +192,14 @@ window.sw = (label, on) => { const r = $all('.toggle-row').find(x => x.textConte
   await step('buy-ins game 2', `btn('Everyone buys in'); await wait(350); btn('Confirm', sheet()); return Core.issuedChips(S.db.current);`);
   await step('simple mode is a list, no table', `return [!!$q('.table-wrap'), $all('.player-list tbody tr').length, $all('.tile-value').map(t => t.textContent).join(' | ')];`);
   await shot('17c-simple-list');
-  await step('one-tap buy-in from the list row', `const tr = $all('.player-list tbody tr').find(tr => tr.textContent.includes('Cara')); tr.querySelector('button').click(); await wait(150);
+  await step('buy-in button on the list row', `const tr = $all('.player-list tbody tr').find(tr => tr.textContent.includes('Cara')); tr.querySelector('button').click(); await wait(350);
+    btn('+1 buy-in', sheet()); await wait(350); btn('Confirm', sheet()); await wait(150); $all('.sheet-back').forEach(b => b.click()); await wait(300);
     const after = Core.paidChips(S.db.current.players.find(p => p.name === 'Cara')); const toast = $all('.toast').pop().textContent; $all('.toast-action').pop().click(); await wait(100);
     return [after, toast, Core.paidChips(S.db.current.players.find(p => p.name === 'Cara')), !!$q('.sheet-back')];`);
   await step('fixed mode panel', `row('Ben'); await wait(350); const s = sheet();
     return { buttons: Array.from(s.querySelectorAll('.quick-row button')).map(b => b.textContent), inputs: s.querySelectorAll('input').length };`);
   await shot('17b-fixed-panel');
-  await step('one tap then undo from the toast', `btn('+1 buy-in', sheet()); await wait(150); const before = Core.paidChips(S.db.current.players.find(p => p.name === 'Ben'));
+  await step('buy-in then undo from the toast', `btn('+1 buy-in', sheet()); await wait(350); btn('Confirm', sheet()); await wait(150); const before = Core.paidChips(S.db.current.players.find(p => p.name === 'Ben'));
     $all('.toast-action').pop().click(); await wait(100); return [before, Core.paidChips(S.db.current.players.find(p => p.name === 'Ben'))];`);
   await step('close fixed panel', `$all('.sheet-back').forEach(b => b.click());`);
   await step('end and count with extra chips', `btn('End game'); await wait(350); btn('Start counting', sheet()); await wait(300);

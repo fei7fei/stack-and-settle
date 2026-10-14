@@ -76,9 +76,11 @@
     'Confirm {m}': '确认 {m}', 'Add some chips': '请添加筹码', 'Total {n} chips': '共 {n} 筹码',
     '{n} too many': '多了 {n}', '{n} to go': '还差 {n}',
     'Build by colours: hand out any chips, the total becomes the buy-in.': '按颜色自由组合：发多少筹码，买入就算多少。',
-    'Suggested': '建议', '{n} chips can’t be made exactly with your colours.': '现有颜色无法正好凑出 {n} 筹码。',
+    '{n} chips can’t be made exactly with your colours.': '现有颜色无法正好凑出 {n} 筹码。',
     'Back to the target amount': '回到目标数额', 'Build by colours (free mode)': '按颜色自由组合',
     'Over the chip leader ({n} max)': '超过筹码最多者（最多 {n}）', '{n} left in bank': '库存剩 {n}',
+    'Reset to suggested': '恢复建议', 'Change any count; the other colours rebalance.': '改动任意数量，其他颜色会自动重新分配。',
+    'The other colours can’t make up the rest. Change another colour.': '其他颜色凑不出剩下的数，请再改一种颜色。',
     'The bank is short of some colours, so this mix ignores the bank counts.': '库存中某些颜色不够，这个组合没有考虑库存。',
 
     // home, history, players
