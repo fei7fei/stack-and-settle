@@ -181,6 +181,11 @@ p { margin: 0; }
 .choice.on { border-color: var(--fg); }
 .choice-icon { width: 46px; height: 46px; border-radius: 12px; background: var(--fg); color: var(--bg); display: grid; place-items: center; font-size: 24px; flex: none; }
 .colour-row { display: flex; gap: 8px; align-items: center; }
+.colour-row input.grow { min-width: 0; }
+.rate-row { display: flex; gap: 8px; align-items: center; }
+.rate-row input.grow { min-width: 0; }
+.rate-row select { flex: none; width: auto; }
+.rate-label { width: 52px; flex: none; color: var(--muted); font-size: 14px; }
 .level-row input { padding: 8px 10px; }
 
 /* ---------- the table ---------- */
@@ -239,7 +244,7 @@ p { margin: 0; }
 .blinds .row { justify-content: flex-end; }
 .blinds .icon-btn { color: var(--btn-fg); }
 .blinds .icon-btn.strong { background: var(--btn-fg); color: var(--btn); }
-.quick-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.quick-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); gap: 6px; }
 .quick-row .btn { padding: 8px 4px; font-size: 14px; }
 .big-mix { font-size: 18px; font-weight: 700; }
 .big-input { font-size: 28px; font-weight: 800; text-align: center; padding: 14px; }
@@ -306,6 +311,8 @@ p { margin: 0; }
 .toast.good { background: var(--win); color: #fff; }
 .toast.bad { background: var(--loss); color: #fff; }
 .toast.big { font-size: 18px; padding: 14px 22px; border-radius: 16px; }
+.toast.has-action { pointer-events: auto; display: flex; align-items: center; gap: 12px; border-radius: 16px; }
+.toast-action { color: inherit; font-weight: 800; text-decoration: underline; padding: 4px 2px; flex: none; }
 
 /* ---------- intro & confetti ---------- */
 .intro { position: fixed; inset: 0; z-index: 100; background: var(--bg); transition: opacity .35s; cursor: pointer; }
@@ -319,7 +326,7 @@ p { margin: 0; }
 
 @media (max-width: 360px) {
   .seat-slot { width: 64px; } .seats-9 .seat-slot, .seats-10 .seat-slot { width: 58px; }
-  .seat-name { font-size: 12px; } .quick-row { grid-template-columns: repeat(2, 1fr); }
+  .seat-name { font-size: 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }

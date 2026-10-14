@@ -97,6 +97,82 @@
     return { mix, remainder: rem };
   };
 
+  /* ---------- chip set presets ---------- */
+  /* pieces per colour (smallest value first) in common boxed sets */
+  Core.CHIP_SETS = { 300: [100, 100, 50, 50], 500: [150, 150, 100, 100] };
+  /* four colour values that suit a buy-in of `buyin` chips (about 40 of the smallest per buy-in, and the
+     buy-in can always be made exactly), with the piece counts of `set` -> [{chips, have}] */
+  Core.presetColours = function (buyin, set) {
+    const ladders = [[1000, [1000, 5000, 25000, 100000]], [100, [100, 500, 1000, 5000]], [25, [25, 100, 500, 1000]], [5, [5, 25, 100, 500]], [1, [1, 5, 25, 100]]];
+    const pick = ladders.find(([b]) => b * 20 <= buyin && buyin % b === 0) || ladders[ladders.length - 1];
+    const counts = Core.CHIP_SETS[set] || Core.CHIP_SETS[500];
+    return pick[1].map((chips, i) => ({ chips, have: counts[i] }));
+  };
+
+  /* ---------- the bank (chips the house still holds) ---------- */
+  /* colour id -> chips of that colour left with the house; null when the colour wasn't counted at setup.
+     Buy-ins take chips out, cash-outs put them back. The house pile (rake) is kept apart. */
+  Core.bank = function (g) {
+    const out = {};
+    g.config.colours.forEach(c => { out[c.id] = Number.isInteger(c.have) ? c.have : null; });
+    const move = (mix, sign) => { if (mix) Object.keys(mix).forEach(id => { if (out[id] != null) out[id] += sign * (mix[id] || 0); }); };
+    g.players.forEach(p => {
+      p.buyins.forEach(b => move(b.mix, -1));
+      if (p.cashedOut) move(p.cashedOut.mix, 1);
+    });
+    return out;
+  };
+  Core.bankTracked = g => g.config.colours.some(c => Number.isInteger(c.have));
+
+  /* Mix for `target` chips that the bank can pay out: as close as possible to an even spread of value over
+     the colours, while taking at most 1/slots of what is left of each colour, so the bank keeps some of every
+     colour for later buy-ins. slots is relaxed down to minSlots when that is too strict. When even minSlots
+     can't be met it falls back to suggestMix and sets `short`. bank[id] null = not counted (no limit). */
+  Core.bankMix = function (target, colours, bank, slots, minSlots) {
+    minSlots = Math.max(1, minSlots || 1);
+    slots = Math.max(minSlots, slots || 1);
+    const avail = c => (bank && bank[c.id] != null ? Math.max(0, bank[c.id]) : Infinity);
+    const usable = colours.filter(c => c.chips > 0 && c.chips <= target && avail(c) > 0);
+    const fallback = short => { const r = Core.suggestMix(target, colours); r.short = short && r.remainder === 0; return r; };
+    if (target <= 0) return { mix: Object.fromEntries(colours.map(c => [c.id, 0])), remainder: 0, short: false };
+    if (!usable.length) return fallback(true);
+    if (usable.every(c => avail(c) === Infinity)) return fallback(false);
+    const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+    const g = usable.reduce((a, c) => gcd(a, c.chips), 0);
+    if (target % g || target / g > 5000) return fallback(false);
+    const U = target / g;
+    const ideal = usable.map(c => target / usable.length / c.chips);
+    const solve = s => {
+      let cost = new Float64Array(U + 1).fill(Infinity);
+      cost[0] = 0;
+      const picks = [];
+      usable.forEach((c, i) => {
+        const w = c.chips / g, cap = Math.min(Math.floor(avail(c) / s), Math.floor(U / w));
+        const next = new Float64Array(U + 1).fill(Infinity), pick = new Int32Array(U + 1);
+        for (let v = 0; v <= U; v++) {
+          if (cost[v] === Infinity) continue;
+          for (let n = 0; n <= cap && v + n * w <= U; n++) {
+            const d = (n - ideal[i]) * c.chips, k = cost[v] + d * d;
+            if (k < next[v + n * w]) { next[v + n * w] = k; pick[v + n * w] = n; }
+          }
+        }
+        cost = next; picks.push(pick);
+      });
+      if (cost[U] === Infinity) return null;
+      const mix = Object.fromEntries(colours.map(c => [c.id, 0]));
+      for (let i = usable.length - 1, v = U; i >= 0; i--) { const n = picks[i][v]; mix[usable[i].id] = n; v -= n * usable[i].chips / g; }
+      return mix;
+    };
+    /* bigger slots = stricter caps, so find the largest slots that still works */
+    let lo = minSlots, hi = slots, best = solve(lo);
+    if (!best) return fallback(true);
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2), m = solve(mid);
+      if (m) { lo = mid; best = m; } else hi = mid - 1;
+    }
+    return { mix: best, remainder: 0, short: false };
+  };
+
   /* ---------- rake ---------- */
   /* "2.5" -> 250 basis points (hundredths of a percent); null when invalid */
   Core.parsePct = function (str) {

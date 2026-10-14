@@ -10,20 +10,24 @@ On the phone, use **Add to Home Screen** to get an app icon.
 
 ## Features
 
-### Set up a game in five steps
+### Set up a game on one screen
+**New game** opens a single screen: what the buy-in costs and how many chips it gets, your chip set (300-chip set, 500-chip set or your own) and the players' names. Tap **Start game**. It remembers the settings from your last game. Everything else is under **More options**:
+
 - **Game type.** *Simple* just tracks money. *Detailed* also records each hand: the winner, the pot and how it ended (showdown, everyone folded, or all-in).
-- **Currency and hand value.** Choose USD, CAD, CNY, EUR, GBP, AUD, HKD, SGD, NZD or your own symbol, then set what one buy-in costs and how many chips it gets. If the numbers don't give a whole-cent chip value, the app suggests the nearest chip count that does.
-- **Chip colours.** Name your chip colours and set how many chips each one is worth.
+- **Money and buy-ins.** Choose USD, CAD, CNY, EUR, GBP, AUD, HKD, SGD, NZD or your own symbol, then say what the chips are worth (for example 1000 chips = ¥100). If the numbers don't give a whole-cent chip value, the app suggests the nearest chip count that does. Then pick the buy-in rules: *any amount* (players type money or chips) or *fixed amount only*, and optionally *no buying in for more than the chip leader has*.
+- **Chip colours.** Name your chip colours, set what each one is worth, and enter how many of each your set has. The app then knows what's left in the bank.
 - **Host fee and extras.** Optionally take a percentage rake with a minimum pot, and set up a blinds timer with your own levels.
 - **Seat the players.** Pick a 6, 8, 9 or 10-seat table, then shuffle the seats. The host can play or just host.
-- **Quick start** reuses the setup from your last game.
+- **Quick start** reuses the setup and players from your last game.
 
 ### During the game
 - **An oval table view** with every player in their seat. The dealer button marks a host who plays, and a house spot shows for a host who only hosts.
-- **Tap a player** to add a buy-in (½, 1, 2 or a custom amount), undo a buy-in, cash out, bust, rename, move or swap seats, make them host, or remove them. Players who arrive late can still sit down.
-- **Chip helper.** For each buy-in it suggests which colours to hand over, and only confirms once the chips add up to the exact amount.
+- **Tap a player, tap an amount.** The buy-in is recorded straight away, and a message says which chips to hand over, with an **Undo** button. *Other* lets you type any amount in money or chips (fixed mode only has whole buy-ins). Each buy-in in the log shows its colours, and ✎ changes them. Cash out and bust sit below; rename, payment handles, move seat, make host and remove are under **More**. Players who arrive late can still sit down.
+- **Chip helper.** For each buy-in it suggests which colours to hand over, and only confirms once the chips add up to the exact amount. The suggestion spreads the colours evenly but never takes so much of one colour that the bank can't serve later buy-ins.
+- **Bank.** Shows how many chips of each colour the house still holds. Buy-ins take chips out and cash-outs put them back.
+- **Chip-leader rule** (optional). Only for buy-ins bigger than the standard one: the app asks for the chip leader's stack and won't sell more than that.
 - **Rake tracking.** Fees are taken in whole chips and only when the pot is big enough. The app shows which chips to pull from the pot, and the house pile has its own undo.
-- **Dashboard.** Shows chips on the table, money in, time played, the house pile, the hand count and who has rebought the most.
+- **Dashboard.** Shows chips on the table, money in, time played, the bank, the house pile, the hand count and who has rebought the most.
 - **Blinds timer.** Rings a bell and shows a message when the level goes up.
 - **Hand log** (Detailed mode). Every hand is listed, and any of them can be undone.
 

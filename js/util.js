@@ -86,14 +86,18 @@
     });
   };
 
-  U.toast = function (msg, kind) {
+  /* action: optional {label, fn} shown as a button in the toast (e.g. Undo); such toasts stay longer */
+  U.toast = function (msg, kind, action) {
     let wrap = document.getElementById('toasts');
     if (!wrap) { wrap = U.h('div', { id: 'toasts' }); document.body.append(wrap); }
-    const t = U.h('div', { class: 'toast ' + (kind || '') }, msg);
+    const hide = () => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); };
+    const t = U.h('div', { class: 'toast ' + (kind || '') + (action ? ' has-action' : '') }, h('span', null, msg),
+      action ? h('button', { class: 'toast-action', onclick: () => { hide(); action.fn(); } }, action.label) : null);
     wrap.append(t);
     requestAnimationFrame(() => t.classList.add('show'));
-    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, kind === 'big' ? 3500 : 2400);
+    setTimeout(hide, action ? 6000 : kind === 'big' ? 3500 : 2400);
   };
+  const h = U.h;
 
   const pad = n => String(n).padStart(2, '0');
   U.fmtTime = ts => { const d = new Date(ts); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };

@@ -88,6 +88,7 @@
       tile(T('Money in'), money(Core.paidCents(game))),
       tile(T('Elapsed'), U.fmtDur(Date.now() - game.startedAt), { elapsed: true }),
     ];
+    if (Core.bankTracked(game)) tiles.push(tile(T('Bank'), money(bankChips() * c.cv), { onclick: bankSheet, cls: 'tap' }));
     if (c.fee.on) tiles.push(tile(T('House pile'), U.fmtChips(Core.rakeTotal(game)), { onclick: houseSheet, cls: 'tap' }));
     if (c.mode === 'detailed') tiles.push(tile(T('Hands'), String(game.hands.length)));
     const actions = h('div', { class: 'actions' },
@@ -98,7 +99,7 @@
       h('div', { class: 'tiles' }, tiles),
       c.blinds.on ? blindsBar() : null,
       tableView('play'),
-      issued === 0 && seated().length ? h('button', { class: 'btn primary block pulse', onclick: everyoneBuysIn }, T('Everyone buys in 1 hand ({m})', { m: money(c.handCents) })) : null,
+      issued === 0 && seated().length ? h('button', { class: 'btn primary block pulse', onclick: everyoneBuysIn }, T('Everyone buys in {m}', { m: money(c.handCents) })) : null,
       actions,
       playerList(),
       c.mode === 'detailed' ? handLog() : null);
@@ -106,11 +107,14 @@
 
   function everyoneBuysIn() {
     const c = cfg();
-    const mix = Core.suggestMix(c.handChips, c.colours);
+    const n = active().length;
+    /* the same mix for everyone; keep enough in the bank for everyone to rebuy once when possible */
+    const mix = Core.bankMix(c.handChips, c.colours, Core.bank(g()), n * 2, n);
     const show = () => U.sheet(api => h('div', { class: 'stack' },
-      h('h3', null, T('Everyone buys in 1 hand')),
+      h('h3', null, T('Everyone buys in')),
       h('p', null, T('Give each player {n} chips:', { n: U.fmtChips(c.handChips) })),
       mix.remainder ? h('div', { class: 'warn' }, T('Can’t be made exactly with your colours.')) : h('div', { class: 'big-mix' }, mixText(mix.mix, c.colours)),
+      mix.short ? h('div', { class: 'warn small' }, T('The bank doesn’t have enough of some colours for everyone. Check the bank.')) : null,
       h('div', { class: 'muted small' }, seated().map(p => p.name).join(', ')),
       h('button', { class: 'btn primary block', onclick: () => {
         api.close();
@@ -140,16 +144,13 @@
 
   /* ---------- player panel ---------- */
   function panel(pid) {
+    const st = { unit: 'money', other: false, more: false };
     U.sheet(api => {
       const p = player(pid);
       if (!p) { setTimeout(api.close); return h('div'); }
       const c = cfg();
       const prof = S.profile(pid) || {};
       const counting = g().phase === 'count';
-      const half = c.handChips % 2 === 0 ? c.handChips / 2 : null;
-      const quick = [
-        half ? ['+½ ' + T('hand'), half] : null, ['+1 ' + T('hand'), c.handChips], ['+2 ' + T('hands'), c.handChips * 2],
-      ].filter(Boolean);
       return h('div', { class: 'stack' },
         h('div', { class: 'row between' },
           h('h3', null, p.name, g().hostPid === pid ? h('span', { class: 'tag' }, T('host')) : null),
@@ -161,15 +162,15 @@
         p.cashedOut ? h('div', { class: 'notice' },
           T('Cashed out {n} chips at {t}', { n: U.fmtChips(p.cashedOut.chips), t: U.fmtTime(p.cashedOut.t) }),
           h('button', { class: 'btn small', onclick: () => { S.commit(() => { p.cashedOut = null; p.finalChips = null; }); api.refresh(); } }, T('Undo cash-out'))) : null,
-        !p.cashedOut ? h('div', { class: 'quick-row' },
-          quick.map(([label, chips]) => h('button', { class: 'btn', onclick: () => buyIn(pid, chips, api) }, label)),
-          h('button', { class: 'btn ghost', onclick: () => customBuyIn(pid, api) }, T('Custom'))) : null,
+        !p.cashedOut ? buyBox(pid, api, st) : null,
         p.buyins.length ? h('div', { class: 'stack-s' },
           h('div', { class: 'label' }, T('Buy-in log')),
           p.buyins.slice().reverse().map(b => h('div', { class: 'log-row' },
             h('span', { class: 'muted' }, U.fmtTime(b.t)),
-            h('span', { class: 'grow' }, U.fmtChips(b.chips) + ' ' + T('chips')),
+            h('span', { class: 'grow col' }, h('span', null, U.fmtChips(b.chips) + ' ' + T('chips')),
+              b.mix ? h('small', { class: 'muted' }, mixText(b.mix, c.colours)) : null),
             h('strong', null, money(b.chips * c.cv)),
+            h('button', { class: 'icon-btn', 'aria-label': T('Change colours'), onclick: () => changeColours(pid, b.id, api) }, '✎'),
             h('button', { class: 'icon-btn', 'aria-label': T('Undo'), onclick: () => {
               U.ask({ title: T('Undo this buy-in?'), body: money(b.chips * c.cv) + ' · ' + U.fmtTime(b.t), ok: T('Undo'), danger: true }).then(ok => {
                 if (!ok) return;
@@ -181,62 +182,178 @@
           counting
             ? h('button', { class: 'btn primary', onclick: () => { api.close(); counter(pid); } }, T('Count chips'))
             : !p.cashedOut ? h('button', { class: 'btn', onclick: () => { api.close(); counter(pid, true); } }, '💵 ' + T('Cash out')) : null,
-          !p.cashedOut && !counting ? h('button', { class: 'btn', onclick: () => bust(pid, api) }, '💀 ' + T('Bust (0)')) : null,
+          !p.cashedOut && !counting ? h('button', { class: 'btn', onclick: () => bust(pid, api) }, '💀 ' + T('Bust (0)')) : null),
+        h('button', { class: 'btn ghost small', 'aria-expanded': String(st.more), onclick: () => { st.more = !st.more; api.refresh(); } },
+          (st.more ? '▴ ' : '▾ ') + T('More')),
+        st.more ? h('div', { class: 'grid2' },
           h('button', { class: 'btn ghost', onclick: () => rename(pid, api) }, T('Rename')),
           h('button', { class: 'btn ghost', onclick: () => handles(pid, api) }, T('Handles')),
           h('button', { class: 'btn ghost', onclick: () => moveSeat(pid, api) }, T('Move seat')),
           g().config.fee.on && g().hostPlays && g().hostPid !== pid ? h('button', { class: 'btn ghost', onclick: () => { S.commit(() => { g().hostPid = pid; }); api.refresh(); } }, '🔘 ' + T('Make host')) : null,
-          !p.buyins.length && g().hostPid !== pid ? h('button', { class: 'btn ghost danger', onclick: () => { api.close(); S.commit(() => { g().players = g().players.filter(x => x.pid !== pid); }); } }, T('Remove')) : null),
-        prof.etransfer || prof.wechat ? h('div', { class: 'muted small' },
+          !p.buyins.length && g().hostPid !== pid ? h('button', { class: 'btn ghost danger', onclick: () => { api.close(); S.commit(() => { g().players = g().players.filter(x => x.pid !== pid); }); } }, T('Remove')) : null) : null,
+        st.more && (prof.etransfer || prof.wechat) ? h('div', { class: 'muted small' },
           [prof.etransfer ? 'e-Transfer: ' + prof.etransfer : null, prof.wechat ? 'WeChat: ' + prof.wechat : null].filter(Boolean).join(' · ')) : null);
     });
   }
   Game.panel = panel;
 
-  function buyIn(pid, chips, panelApi) {
-    Helper.open({
-      target: chips, title: T('Buy-in for {name}', { name: player(pid).name }),
-      onConfirm: (total, mix) => {
-        Snd.clack();
-        S.commit(() => { player(pid).buyins.push({ id: U.uid(), t: Date.now(), chips: total, mix }); });
-        U.toast('+' + money(total * cfg().cv) + ' · ' + player(pid).name, 'good');
-        if (panelApi) panelApi.refresh();
-      },
+  /* buy-ins the bank should still cover after this one: everyone not in yet, plus one rebuy each */
+  function bankSlots(pid) {
+    const act = active();
+    return 1 + act.filter(p => p.pid !== pid && !p.buyins.length).length + act.length;
+  }
+  function bankChips() {
+    const bank = Core.bank(g());
+    return cfg().colours.reduce((s, col) => s + (bank[col.id] != null ? bank[col.id] * col.chips : 0), 0);
+  }
+
+  /* Buy-in buttons in the player panel: one tap records the buy-in with a suggested colour mix.
+     Fixed mode: whole buy-ins only. Otherwise quick amounts plus "Other amount" in money or chips. */
+  function buyBox(pid, panelApi, st) {
+    const c = cfg(), rules = c.buyin || {};
+    const half = c.handChips % 2 === 0 ? c.handChips / 2 : null;
+    const quick = rules.fixed
+      ? [['+1 ' + T('buy-in') + ' · ' + money(c.handCents), c.handChips], ['+2 · ' + money(c.handCents * 2), c.handChips * 2]]
+      : [half, c.handChips, c.handChips * 2].filter(Boolean).map(n => ['+' + money(n * c.cv), n]);
+    const buttons = quick.map(([label, chips]) => h('button', { class: 'btn', onclick: () => buy(pid, chips, panelApi) }, label));
+    if (rules.fixed) return h('div', { class: 'stack-s' }, h('div', { class: 'quick-row' }, buttons));
+    if (!st.other) {
+      return h('div', { class: 'stack-s' },
+        h('div', { class: 'quick-row' }, buttons,
+          h('button', { class: 'btn ghost', onclick: () => { st.other = true; panelApi.refresh(); setTimeout(() => { const el = panelApi.panel.querySelector('[data-amount]'); if (el) el.focus(); }); } }, T('Other'))));
+    }
+
+    let typed = null;
+    const out = h('div', { class: 'muted small' });
+    const go = h('button', { class: 'btn primary', disabled: true, onclick: () => { if (typed) buy(pid, typed, panelApi); } }, T('Buy in'));
+    const input = h('input', {
+      type: 'text', inputMode: st.unit === 'money' ? 'decimal' : 'numeric', class: 'grow', 'data-amount': '1',
+      placeholder: st.unit === 'money' ? (c.handCents / 100).toFixed(2) : String(c.handChips), 'aria-label': T('Buy-in amount'),
+      oninput: () => sync(), onkeydown: e => { if (e.key === 'Enter') go.click(); },
+    });
+    function sync() {
+      typed = null;
+      const v = input.value.trim();
+      if (!v) out.textContent = '';
+      else if (st.unit === 'money') {
+        const cents = Core.parseMoney(v);
+        if (cents == null || cents <= 0) out.textContent = T('Enter an amount');
+        else if (cents % c.cv) out.textContent = T('Must be a multiple of one chip ({v}).', { v: money(c.cv) });
+        else { typed = cents / c.cv; out.textContent = '= ' + T('{n} chips', { n: U.fmtChips(typed) }); }
+      } else {
+        typed = Core.parseInt0(v) || null;
+        out.textContent = typed ? '= ' + money(typed * c.cv) : T('Enter whole chips');
+      }
+      out.className = 'small ' + (!v ? 'muted' : typed ? 'win' : 'bad-text');
+      go.disabled = !typed;
+    }
+    return h('div', { class: 'stack-s' },
+      h('div', { class: 'quick-row' }, buttons),
+      h('div', { class: 'row gap-s' },
+        Setup.seg([['money', T('Money')], ['chips', T('Chips')]], st.unit, v => { st.unit = v; panelApi.refresh(); }),
+        input, go),
+      out);
+  }
+
+  /* With the chip-leader rule, a buy-in bigger than the standard one needs the leader's stack first. */
+  function leaderCheck(pid, chips) {
+    const c = cfg();
+    const others = active().filter(x => x.pid !== pid && x.buyins.length);
+    if (!(c.buyin && c.buyin.leaderCap) || g().phase !== 'play' || !others.length || chips <= c.handChips) return Promise.resolve(chips);
+    return new Promise(resolve => {
+      let done = false;
+      U.sheet(api => {
+        const onTable = Core.inPlayChips(g());
+        const msg = h('div', { class: 'small muted' });
+        const ok = h('button', { class: 'btn primary block', disabled: true });
+        let leader = null;
+        const input = h('input', { type: 'text', inputMode: 'numeric', class: 'big-input', placeholder: T('Chip leader’s stack'), 'aria-label': T('Chip leader’s stack'),
+          oninput: () => sync(), onkeydown: e => { if (e.key === 'Enter') ok.click(); } });
+        const sync = () => {
+          const n = Core.parseInt0(input.value);
+          leader = n && n <= onTable ? n : null;
+          ok.disabled = !leader;
+          if (!input.value.trim()) { msg.className = 'small muted'; msg.textContent = ''; ok.textContent = T('Buy in'); return; }
+          if (!leader) { msg.className = 'small bad-text'; msg.textContent = T('At most the {n} chips on the table.', { n: U.fmtChips(onTable) }); ok.textContent = T('Buy in'); return; }
+          const take = Math.min(chips, leader);
+          msg.className = 'small ' + (take < chips ? 'bad-text' : 'win');
+          msg.textContent = take < chips ? T('That’s more than the chip leader has. The most is {n} chips.', { n: U.fmtChips(leader) }) : '✓';
+          ok.textContent = T('Buy in {m}', { m: money(take * cfg().cv) });
+        };
+        ok.addEventListener('click', () => {
+          if (!leader) return;
+          done = true; api.close();
+          g().leaderChips = leader; S.save();
+          resolve(Math.min(chips, leader));
+        });
+        setTimeout(() => input.focus(), 250);
+        return h('div', { class: 'stack' },
+          h('h3', null, T('How many chips does the chip leader have?')),
+          h('div', { class: 'muted small' }, T('{name} wants {n} chips. Nobody can buy in for more than the chip leader has.', { name: player(pid).name, n: U.fmtChips(chips) })),
+          input, msg, ok);
+      }, { cls: 'small', onclose: () => { if (!done) resolve(null); } });
     });
   }
 
-  function customBuyIn(pid, panelApi) {
+  /* one tap: record the buy-in with the suggested mix and say which chips to hand over (with Undo).
+     When the mix can't be made from the bank or at all, open the colour helper instead. */
+  function buy(pid, chips, panelApi) {
+    leaderCheck(pid, chips).then(n => {
+      if (!n) return;
+      const c = cfg();
+      const sugg = Core.bankMix(n, c.colours, Core.bank(g()), bankSlots(pid));
+      if (sugg.remainder || sugg.short) { buyIn(pid, n, panelApi); return; }
+      record(pid, n, sugg.mix, panelApi);
+    });
+  }
+  function record(pid, chips, mix, panelApi) {
+    const c = cfg(), p = player(pid), id = U.uid();
+    Snd.clack();
+    S.commit(() => { p.buyins.push({ id, t: Date.now(), chips, mix }); });
+    U.toast(T('Give {name} {mix}', { name: p.name, mix: mixText(mix, c.colours) }) + ' · ' + money(chips * c.cv), 'good', {
+      label: T('Undo'),
+      fn: () => { S.commit(() => { p.buyins = p.buyins.filter(b => b.id !== id); }); if (panelApi) panelApi.refresh(); },
+    });
+    if (panelApi) panelApi.refresh();
+  }
+
+  /* the colour helper, for buy-ins one tap can't handle (or free mode) */
+  function buyIn(pid, chips, panelApi) {
     const c = cfg();
-    let unit = 'money';
-    U.sheet(api => {
-      const out = h('div', { class: 'derived' });
-      const input = h('input', { type: 'text', inputMode: unit === 'money' ? 'decimal' : 'numeric', placeholder: unit === 'money' ? '20.00' : '1000' });
-      let chips = null;
-      const go = h('button', { class: 'btn primary block', disabled: true, onclick: () => { api.close(); buyIn(pid, chips, panelApi); } }, T('Continue'));
-      const update = () => {
-        chips = null;
-        const v = input.value.trim();
-        if (!v) { out.textContent = ''; go.disabled = true; return; }
-        if (unit === 'money') {
-          const cents = Core.parseMoney(v);
-          if (cents == null || cents <= 0) out.textContent = T('Enter an amount');
-          else if (cents % c.cv) out.textContent = T('Must be a multiple of one chip ({v}).', { v: money(c.cv) });
-          else { chips = cents / c.cv; out.textContent = '= ' + T('{n} chips', { n: U.fmtChips(chips) }); }
-        } else {
-          const n = Core.parseInt0(v);
-          if (!n) out.textContent = T('Enter whole chips');
-          else { chips = n; out.textContent = '= ' + money(n * c.cv); }
-        }
-        out.className = 'derived ' + (chips ? 'ok' : 'bad');
-        go.disabled = !chips;
-      };
-      input.addEventListener('input', update);
-      input.addEventListener('keydown', e => { if (e.key === 'Enter' && chips) go.click(); });
-      setTimeout(() => input.focus(), 250);
+    Helper.open({
+      target: chips, title: T('Buy-in for {name}', { name: player(pid).name }), slots: bankSlots(pid),
+      max: c.buyin && c.buyin.leaderCap ? Math.max(c.handChips, g().leaderChips || 0) : null,
+      onConfirm: (total, mix) => record(pid, total, mix, panelApi),
+    });
+  }
+
+  /* hand over different colours for a buy-in already recorded */
+  function changeColours(pid, id, panelApi) {
+    const b = player(pid).buyins.find(x => x.id === id);
+    if (!b) return;
+    Helper.open({
+      target: b.chips, title: T('Colours for {name}', { name: player(pid).name }), slots: bankSlots(pid), current: b.mix, fixedTarget: true,
+      onConfirm: (total, mix) => { S.commit(() => { b.mix = mix; }); if (panelApi) panelApi.refresh(); },
+    });
+  }
+
+  function bankSheet() {
+    U.sheet(() => {
+      const c = cfg(), bank = Core.bank(g());
+      const total = bankChips();
+      const pieces = c.colours.reduce((s, col) => s + (bank[col.id] != null ? bank[col.id] : 0), 0);
       return h('div', { class: 'stack' },
-        h('h3', null, T('Custom buy-in')),
-        Setup.seg([['money', T('Money')], ['chips', T('Chips')]], unit, v => { unit = v; api.refresh(); }),
-        input, out, go);
+        h('h3', null, '🏦 ' + T('Bank')),
+        h('div', { class: 'kpis' },
+          h('div', null, h('small', null, T('Pieces')), h('strong', null, U.fmtChips(pieces))),
+          h('div', null, h('small', null, T('Chips')), h('strong', null, U.fmtChips(total))),
+          h('div', null, h('small', null, T('Value')), h('strong', null, money(total * c.cv)))),
+        h('div', { class: 'stack-s' }, c.colours.slice().sort((a, b) => b.chips - a.chips).map(col => h('div', { class: 'count-row' },
+          h('span', { class: 'swatch', style: { background: col.color } }),
+          h('span', { class: 'grow' }, col.name, h('small', { class: 'muted' }, ' × ' + U.fmtChips(col.chips))),
+          bank[col.id] == null ? h('span', { class: 'muted small' }, T('not counted'))
+            : h('strong', { class: bank[col.id] < 0 ? 'bad-text' : null }, T('{a} of {b} left', { a: bank[col.id], b: col.have }))))),
+        h('div', { class: 'muted small' }, T('Buy-ins take chips from the bank and cash-outs put them back. Suggested mixes keep some of every colour for later buy-ins.')));
     }, { cls: 'small' });
   }
 

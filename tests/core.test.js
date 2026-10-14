@@ -48,6 +48,54 @@ test('grab mix for rake', () => {
   assert.equal(Core.grabMix(130, COLOURS).remainder, 5);
 });
 
+test('chip set presets suit the buy-in and can always make it exactly', () => {
+  assert.deepEqual(Core.presetColours(1000, 500).map(c => c.chips), [25, 100, 500, 1000]);
+  assert.deepEqual(Core.presetColours(1000, 300).map(c => c.have), [100, 100, 50, 50]);
+  assert.deepEqual(Core.presetColours(200, 500).map(c => c.chips), [5, 25, 100, 500]);
+  assert.deepEqual(Core.presetColours(5000, 500).map(c => c.chips), [100, 500, 1000, 5000]);
+  [1, 7, 100, 200, 1000, 1030, 2500, 5000, 100000].forEach(n => {
+    const cols = Core.presetColours(n, 500).map((c, i) => ({ id: 'c' + i, chips: c.chips }));
+    assert.ok(Core.exactMix(n, cols), 'buy-in of ' + n + ' can be made');
+  });
+});
+
+test('the bank follows buy-ins and cash-outs per colour', () => {
+  const colours = [{ id: 'w', chips: 25, have: 100 }, { id: 'r', chips: 100, have: 50 }, { id: 'b', chips: 1000 }];
+  const g = { config: { colours }, players: [
+    { buyins: [{ chips: 1000, mix: { w: 20, r: 5, b: 0 } }, { chips: 1000, mix: null }], cashedOut: null },
+    { buyins: [{ chips: 1000, mix: { w: 0, r: 0, b: 1 } }], cashedOut: { chips: 300, mix: { w: 4, r: 2, b: 0 } } },
+  ] };
+  assert.deepEqual(Core.bank(g), { w: 84, r: 47, b: null });
+  assert.equal(Core.bankTracked(g), true);
+  assert.equal(Core.bankTracked({ config: { colours: COLOURS } }), false);
+});
+
+test('bank mixes are exact, stay inside the bank and keep a reserve', () => {
+  const unlimited = Core.bankMix(1000, COLOURS, { w: null, r: null, g: null, b: null }, 16);
+  assert.deepEqual(unlimited.mix, Core.suggestMix(1000, COLOURS).mix);
+  const bank = { w: 100, r: 100, g: 50, b: 20 };
+  const first = Core.bankMix(1000, COLOURS, bank, 16);
+  assert.equal(first.short, false);
+  assert.equal(Core.mixTotal(first.mix, COLOURS), 1000);
+  assert.ok(first.mix.w <= Math.floor(100 / 16), 'leaves whites for 15 more buy-ins');
+  assert.ok(Object.values(first.mix).filter(Boolean).length >= 3, 'still spreads over colours');
+  // whites nearly gone: the mix must avoid them rather than overdraw
+  const low = Core.bankMix(1000, COLOURS, { w: 1, r: 3, g: 0, b: 5 }, 9);
+  assert.equal(low.short, false);
+  assert.equal(Core.mixTotal(low.mix, COLOURS), 1000);
+  assert.ok(low.mix.w <= 1 && low.mix.r <= 3 && low.mix.g === 0 && low.mix.b <= 5);
+  // the bank can't cover it at all
+  const short = Core.bankMix(1000, COLOURS, { w: 3, r: 2, g: 0, b: 0 }, 4);
+  assert.equal(short.short, true);
+  assert.equal(Core.mixTotal(short.mix, COLOURS), 1000);
+  // a target no colour combination can make is not reported as a bank shortage
+  assert.equal(Core.bankMix(510, COLOURS, bank, 4).short, false);
+  assert.ok(Core.bankMix(510, COLOURS, bank, 4).remainder > 0);
+  // everyone at once: n copies must fit in the bank
+  const each = Core.bankMix(1000, COLOURS, bank, 16, 8);
+  COLOURS.forEach(c => assert.ok(each.mix[c.id] * 8 <= bank[c.id]));
+});
+
 test('rake is whole chips rounded down with a minimum pot', () => {
   assert.equal(Core.parsePct('2.5'), 250);
   assert.equal(Core.parsePct('5%'), 500);
