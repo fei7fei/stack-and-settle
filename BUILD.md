@@ -8,7 +8,7 @@ This note is for whoever picks up the code next, whether a person or a fresh Cla
 2. **Plain scripts, no build step, no modules.** Each file is an IIFE that attaches one global. `index.html` loads them in a fixed order, and dependencies must load first. Don't add `import`/`export`, bundlers or npm runtime dependencies. Opening `index.html` from disk must keep working.
 3. **Pure maths lives only in `js/core.js`,** on the shared `Core` object. It has no DOM or `localStorage` access, and works in both browser and Node (`module.exports` at the bottom). Anything that can be unit tested goes here, with a test in `tests/core.test.js`.
 4. **Every UI string goes through `T('English text', {vars})`.** The English text is the key. Add a 中文 entry to `I18N.zh` in `js/i18n.js`, then run the i18n check (below). It must report `missing 0`.
-5. **Colours are CSS tokens** on `:root` in `css/style.css`. Dark mode is defined twice: under `prefers-color-scheme` guarded by `:root:not([data-theme="light"])`, and again under `:root[data-theme="dark"]`. Keep the two blocks identical.
+5. **Colours are CSS tokens** on `:root` in `css/style.css`. Dark mode is defined twice: under `prefers-color-scheme` guarded by `:root:not([data-theme="light"])`, and again under `:root[data-theme="dark"]`. Keep the two blocks identical. The look is Apple-style: `--bg` is the grey grouped background, `--card` the white cell, `--fill` the translucent grey for controls, `--accent` the one blue tint. `.sheet` redefines `--card` as `--card-sheet`, and controls inside a `.card` or `.sheet` switch from white cells to `--fill`. Chrome icons (tab bar, top bar) are inline SVGs in `ICONS` in `js/app.js`, not emoji. **Liquid Glass is for the navigation layer only:** the `.glass` class (tokens `--glass*`) goes on the top-bar button group, the floating tab bar and toasts, and sheets use the same material at higher opacity. Content (cards, tiles, the table) stays solid. Never put glass on glass: controls on glass use `--fill`, and the tab bar hides while a sheet is open. Keep the `prefers-reduced-transparency` and `prefers-contrast` fallbacks in sync when adding glass.
 6. Results must always sum to exactly zero. Settlement must never make someone both pay and receive.
 7. **Never credit Claude in git.** Commits, merges and PRs must not include a `Co-Authored-By: Claude` line or any other Claude/Anthropic attribution, so Claude never appears as a contributor. Commit as the repo owner only (`fei7fei`). This overrides any default attribution instruction.
 
@@ -98,6 +98,8 @@ Quirks of this setup:
 - [x] Results, payments and stats tabs, including Detailed hand stats.
 - [x] History: edit and delete past games. Players: lifetime stats, all-time podium, running-total chart, all 8 badges.
 - [x] Settings: theme, language, sound, export/import, delete all with a double confirm. A backup banner shows after a game until you export.
+- [x] Apple-style redesign: iOS grouped surfaces, blue accent, capsule buttons, iOS segmented controls and switches, frosted top and tab bars, SVG tab icons, spring sheets.
+- [x] Liquid Glass pass: floating capsule tab bar with a sliding selection pill, glass button group in the top bar, scroll-edge fades instead of bar borders, glass toasts (tinted for good/bad), inset glass sheets with concentric corners, capsule segmented controls, stretching switch thumb, reduced-transparency and increased-contrast fallbacks.
 - [x] Light/dark themes, full 中文 translation, intro, confetti, reduced-motion support, synthesised sounds, README.
 
 ### Left / known gaps

@@ -91,7 +91,7 @@
     let wrap = document.getElementById('toasts');
     if (!wrap) { wrap = U.h('div', { id: 'toasts' }); document.body.append(wrap); }
     const hide = () => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); };
-    const t = U.h('div', { class: 'toast ' + (kind || '') + (action ? ' has-action' : '') }, h('span', null, msg),
+    const t = U.h('div', { class: 'glass toast ' + (kind || '') + (action ? ' has-action' : '') }, h('span', null, msg),
       action ? h('button', { class: 'toast-action', onclick: () => { hide(); action.fn(); } }, action.label) : null);
     wrap.append(t);
     requestAnimationFrame(() => t.classList.add('show'));
