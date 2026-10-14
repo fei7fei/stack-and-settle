@@ -1,0 +1,8 @@
+{
+  "name": "stack-and-settle",
+  "private": true,
+  "description": "Poker home-game settlement web app. Static site, no build step.",
+  "scripts": {
+    "test": "node --test tests/core.test.js"
+  }
+}
