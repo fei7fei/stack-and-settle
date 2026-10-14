@@ -1,4 +1,5 @@
-/* Game setup: a one-screen quick setup, plus the full wizard (game type, money, colours, host fee & extras, seats). */
+/* Game setup: one screen with two tabs. Basics (buy-in, chip set, players) is all a Simple game needs;
+   More options lists every extra as a switch, all off until turned on. Detailed mode (the table, hands, seats) is one of them. */
 (function () {
   'use strict';
   const Setup = window.Setup = {};
@@ -11,28 +12,28 @@
     { id: U.uid(), name: T('Black'), color: '#222222', chips: 1000, have: 100 },
   ];
   const DEFAULT_LEVELS = () => [[25, 50], [50, 100], [100, 200], [200, 400], [300, 600], [500, 1000], [1000, 2000]].map(([sb, bb]) => ({ sb, bb }));
-  const STEPS = ['Game type', 'Money & buy-ins', 'Chip colours', 'Host fee & extras', 'Seat the players'];
   const SIZES = [6, 8, 9, 10];
 
   const freshDraft = () => ({
-    quick: true, step: 0, mode: 'simple', currency: 'CAD', symbol: '$',
+    more: false, mode: 'simple', currency: 'CAD', symbol: '$',
     handMoney: '20', handChips: '1000', buyinFixed: false, leaderCap: false, chipSet: 500, colours: DEFAULT_COLOURS(), colourUnit: 'chips',
     fee: { on: false, pct: '5', minPot: '0' }, hostPlays: true, hostName: '',
     blinds: { on: false, minutes: '20', levels: DEFAULT_LEVELS() },
-    seatsN: 6, seats: Array(6).fill(null), hostPid: null,
+    pickSeats: false, seatsN: 6, seats: Array(6).fill(null), hostPid: null,
   });
 
-  /* New game: the last game's settings, no players yet */
+  /* New game: the last game's buy-in and chips, no players, and every extra switched off (their numbers are kept for when they're turned on) */
   Setup.newDraft = function () {
     const last = S.lastGame();
     if (!last) return freshDraft();
     const d = Setup.fromGame(last);
     d.seatsN = 6; d.seats = Array(6).fill(null);
-    if (d.hostPlays) d.hostPid = null;
+    d.mode = 'simple'; d.buyinFixed = false; d.leaderCap = false; d.fee.on = false; d.blinds.on = false;
+    d.hostPlays = true; d.hostPid = null;
     return d;
   };
 
-  /* Quick start: same players, seats, colours and values as the last finished game */
+  /* Quick start: same players, colours, values and extras as the last finished game */
   Setup.fromGame = function (g) {
     const c = g.config;
     const d = freshDraft();
@@ -40,7 +41,7 @@
       mode: c.mode, currency: c.currency, symbol: c.symbol,
       handMoney: (c.handCents / 100).toString(), handChips: String(c.handChips),
       buyinFixed: !!(c.buyin && c.buyin.fixed), leaderCap: !!(c.buyin && c.buyin.leaderCap),
-      chipSet: 'custom', colours: U.clone(c.colours), seatsN: c.seats, seats: Array(c.seats).fill(null),
+      chipSet: presetOf(c), colours: U.clone(c.colours), seatsN: c.seats, seats: Array(c.seats).fill(null),
       fee: { on: c.fee.on, pct: (c.fee.bps / 100).toString(), minPot: String(c.fee.minPot || 0) },
       hostPlays: g.hostPlays !== false, hostPid: g.hostPlays !== false ? g.hostPid : null,
       hostName: g.hostPlays === false ? S.nameOf(g.hostPid) : '',
@@ -49,6 +50,15 @@
     g.players.filter(p => !p.hostOnly && p.seat != null && p.seat < c.seats).forEach(p => { d.seats[p.seat] = p.pid; });
     return d;
   };
+
+  /* which preset a saved game's colours came from (games don't store it), or 'custom' when they were edited */
+  function presetOf(c) {
+    const cols = c.colours.slice().sort((a, b) => a.chips - b.chips), base = DEFAULT_COLOURS();
+    return [500, 300].find(set => {
+      const p = Core.presetColours(c.handChips, set);
+      return cols.length === p.length && p.every((x, i) => cols[i].chips === x.chips && cols[i].have === x.have && cols[i].color === base[i].color);
+    }) || 'custom';
+  }
 
   const d = () => S.db.draft;
   const save = () => S.save();
@@ -85,42 +95,65 @@
 
   Setup.render = function () {
     const dr = d();
-    if (dr.quick) return quickScreen();
-    const body = [stepGameType, stepMoney, stepColours, stepHost, stepSeats][dr.step]();
     const err = h('div', { class: 'form-error', 'aria-live': 'polite' });
-    const next = () => {
-      const msg = validate(dr.step);
-      if (msg) { showError(err, msg); return; }
-      if (dr.step === 4) { start(); return; }
-      S.commit(() => { dr.step++; });
-    };
+    const n = extrasOn().length;
     return h('div', { class: 'screen wizard' },
-      h('div', { class: 'wizard-head' },
-        h('div', { class: 'steps' }, STEPS.map((s, i) => h('button', {
-          class: 'step-dot' + (i === dr.step ? ' on' : '') + (i < dr.step ? ' done' : ''),
-          'aria-label': T(s), onclick: () => { if (i < dr.step) S.commit(() => { dr.step = i; }); },
-        }))),
-        h('div', { class: 'muted small' }, T('Step {a} of {b}', { a: dr.step + 1, b: STEPS.length })),
-        h('h2', null, T(STEPS[dr.step]))),
-      body, err,
+      h('h2', null, T('New game')),
+      seg([['basic', T('Basics')], ['more', T('More options') + (n ? ' · ' + n : '')]], dr.more ? 'more' : 'basic',
+        v => S.commit(() => { dr.more = v === 'more'; })),
+      dr.more ? moreTab() : basicTab(),
+      err,
       h('div', { class: 'wizard-foot' },
-        h('button', { class: 'btn ghost', onclick: () => S.commit(() => { if (dr.step === 0) dr.quick = true; else dr.step--; }) },
-          dr.step === 0 ? '← ' + T('Quick setup') : T('Back')),
-        h('button', { class: 'btn primary', onclick: next }, dr.step === 4 ? T('Start game') : T('Next'))));
+        h('button', { class: 'btn ghost', onclick: () => U.ask({ title: T('Discard this setup?'), ok: T('Discard'), danger: true }).then(ok => { if (ok) S.commit(db => { db.draft = null; }); }) }, T('Cancel')),
+        h('button', { class: 'btn primary', onclick: () => go(err) }, T('Start game'))));
   };
 
   function showError(err, msg) {
     err.textContent = msg; err.classList.remove('shake'); void err.offsetWidth; err.classList.add('shake'); Snd.buzz();
   }
 
-  /* ---------- quick setup: one screen, everything else under "More options" ---------- */
-  function quickScreen() {
+  /* the extras that are switched on, for the tab badge and the summary line under the basics */
+  function extrasOn() {
     const dr = d();
-    const err = h('div', { class: 'form-error', 'aria-live': 'polite' });
+    return [
+      dr.mode === 'detailed' ? T('Detailed mode') : null,
+      dr.buyinFixed ? T('Fixed buy-ins') : null,
+      dr.leaderCap ? T('Chip-leader rule') : null,
+      dr.fee.on ? T('Host fee {p}%', { p: dr.fee.pct }) : null,
+      dr.blinds.on ? T('Blinds timer') : null,
+      dr.pickSeats && dr.mode === 'detailed' ? T('Choose seats') : null,
+    ].filter(Boolean);
+  }
+
+  function go(err) {
+    const dr = d();
+    /* each problem is shown on the tab where it can be fixed */
+    const basic = validate('money') || validate('colours') || playersError();
+    const msg = basic || hostError() || validate('extras');
+    if (msg) {
+      const more = !basic;
+      if (dr.more !== more) { S.commit(() => { dr.more = more; }); err = document.querySelector('.form-error') || err; }
+      showError(err, msg);
+      return;
+    }
+    if (!dr.pickSeats || dr.mode !== 'detailed') {
+      /* seat everyone side by side on the smallest table that fits */
+      const people = seated();
+      dr.seatsN = SIZES.find(s => s >= people.length);
+      dr.seats = people.concat(Array(dr.seatsN - people.length).fill(null));
+    }
+    start();
+  }
+
+  /* ---------- basics: the buy-in, the chip set and the players ---------- */
+  function basicTab() {
+    const dr = d();
+    const custom = dr.chipSet === 'custom';
     const chipsBox = h('div', { class: 'mix-chips' });
     const chipWarn = h('div', { class: 'warn small' });
     const showChips = () => {
       applyPreset(); save();
+      if (custom) return; /* the colour editor below shows its own checks */
       U.clear(chipsBox);
       dr.colours.slice().sort((a, b) => a.chips - b.chips).forEach(c => chipsBox.append(h('span', { class: 'mix-chip' },
         h('span', { class: 'swatch', style: { background: c.color } }), U.fmtChips(c.chips) + (Number.isInteger(c.have) ? ' × ' + c.have : ''))));
@@ -148,47 +181,21 @@
       setTimeout(() => { const el = document.querySelector('[data-quick-name]'); if (el) el.focus(); });
     };
     nameIn.addEventListener('keydown', e => { if (e.key === 'Enter') addName(); });
-
-    const extras = [
-      dr.mode === 'detailed' ? T('Detailed') : null,
-      dr.fee.on ? T('Host fee {p}%', { p: dr.fee.pct }) : null,
-      dr.blinds.on ? T('Blinds timer') : null,
-      dr.buyinFixed ? T('Fixed buy-ins') : null,
-      dr.leaderCap ? T('Chip-leader rule') : null,
-    ].filter(Boolean);
-
-    const go = () => {
-      const msg = validate(1) || validate(2) || quickSeatsError() || validate(3);
-      if (msg) { showError(err, msg); return; }
-      S.commit(() => {
-        /* seat everyone side by side on the smallest table that fits */
-        const people = seated();
-        dr.seatsN = SIZES.find(s => s >= people.length);
-        dr.seats = people.concat(Array(dr.seatsN - people.length).fill(null));
-      });
-      start();
-    };
+    const extras = extrasOn();
 
     showChips();
-    return h('div', { class: 'screen wizard' },
-      h('h2', null, T('New game')),
+    return h('div', { class: 'stack' },
       rateBlock(showChips),
       h('div', { class: 'label' }, T('Your chips')),
       seg([[300, T('300-chip set')], [500, T('500-chip set')], ['custom', T('My own')]], dr.chipSet,
-        v => S.commit(() => { dr.chipSet = v; if (v === 'custom') { dr.quick = false; dr.step = 2; } })),
-      chipsBox, chipWarn,
+        v => S.commit(() => { dr.chipSet = v; })),
+      custom ? colourEditor() : [chipsBox, chipWarn],
       h('div', { class: 'label' }, T('Players') + (seated().length ? ' · ' + seated().length : '')),
       h('div', { class: 'row gap' }, nameIn, h('button', { class: 'btn', onclick: addName }, T('Add'))),
       h('div', { class: 'pill-list' },
         seated().map(pid => h('button', { class: 'pill on', onclick: () => toggleP(pid) }, '✓ ' + S.nameOf(pid))),
         others.map(p => h('button', { class: 'pill', onclick: () => toggleP(p.id) }, p.name))),
-      dr.fee.on ? hostPicker() : null,
-      h('button', { class: 'btn ghost block', onclick: () => S.commit(() => { dr.quick = false; dr.step = 0; }) },
-        '⚙ ' + T('More options'), h('div', { class: 'muted small' }, extras.length ? extras.join(' · ') : T('Game type, host fee, blinds, buy-in rules, colours'))),
-      err,
-      h('div', { class: 'wizard-foot' },
-        h('button', { class: 'btn ghost', onclick: () => U.ask({ title: T('Discard this setup?'), ok: T('Discard'), danger: true }).then(ok => { if (ok) S.commit(db => { db.draft = null; }); }) }, T('Cancel')),
-        h('button', { class: 'btn primary', onclick: go }, T('Start game'))));
+      extras.length ? h('div', { class: 'muted small' }, T('Also on: {list}', { list: extras.join(' · ') })) : null);
   }
 
   /* with a host fee: who collects it, one of the players or someone who isn't playing */
@@ -202,9 +209,11 @@
       !dr.hostPlays ? h('input', { type: 'text', value: dr.hostName, maxLength: 24, placeholder: T('Host name'), oninput: e => { dr.hostName = e.target.value; save(); } }) : null);
   }
 
-  function quickSeatsError() {
+  function playersError() {
+    return seated().length < 2 ? T('Add at least two players.') : null;
+  }
+  function hostError() {
     const dr = d();
-    if (seated().length < 2) return T('Add at least two players.');
     if (dr.fee.on && dr.hostPlays && !seated().includes(dr.hostPid)) return T('Pick who’s hosting.');
     if (dr.fee.on && !dr.hostPlays) {
       const hp = S.findProfile(dr.hostName);
@@ -213,18 +222,18 @@
     return null;
   }
 
-  function validate(step) {
+  function validate(part) {
     const dr = d();
-    if (step === 1) {
+    if (part === 'money') {
       if (!handChips()) return T('Enter the number of chips as a whole number.');
       if (handCents() == null || handCents() <= 0) return T('Enter what those chips are worth, for example 20.');
       if (cv() == null) return T('One chip must be a whole number of cents.');
     }
-    if (step === 2) {
+    if (part === 'colours') {
       if (!dr.colours.length) return T('Add at least one chip colour.');
       if (dr.colours.some(c => !Number.isInteger(c.chips) || c.chips <= 0)) return T('Every colour needs a value in whole chips.');
     }
-    if (step === 3) {
+    if (part === 'extras') {
       if (dr.fee.on) {
         if (Core.parsePct(dr.fee.pct) == null || Core.parsePct(dr.fee.pct) === 0) return T('Enter a fee percentage, for example 2.5.');
         if (Core.parseInt0(dr.fee.minPot) == null) return T('Minimum pot must be a whole number of chips.');
@@ -233,15 +242,6 @@
       if (dr.blinds.on) {
         if (!Core.parseInt0(dr.blinds.minutes)) return T('Enter minutes per blind level.');
         if (!dr.blinds.levels.length) return T('Add at least one blind level.');
-      }
-    }
-    if (step === 4) {
-      const seated = dr.seats.filter(Boolean);
-      if (seated.length < 2) return T('Seat at least two players.');
-      if (dr.fee.on && dr.hostPlays && !seated.includes(dr.hostPid)) return T('Tap the host’s seat and choose “Make host”.');
-      if (dr.fee.on && !dr.hostPlays) {
-        const hp = S.findProfile(dr.hostName);
-        if (hp && seated.includes(hp.id)) return T('{name} is seated. Choose “Host plays” instead.', { name: hp.name });
       }
     }
     return null;
@@ -278,18 +278,6 @@
     S.commit(db => { db.current = game; db.draft = null; });
   }
 
-  /* ---------- step 1 ---------- */
-  function stepGameType() {
-    const dr = d();
-    const opt = (mode, title, desc, icon) => h('button', {
-      class: 'choice' + (dr.mode === mode ? ' on' : ''), onclick: () => S.commit(() => { dr.mode = mode; }),
-    }, h('div', { class: 'choice-icon' }, icon), h('div', null, h('strong', null, T(title)), h('div', { class: 'muted small' }, T(desc))));
-    return h('div', { class: 'stack' },
-      opt('simple', 'Simple', 'Play only. No hand-by-hand recording. End-of-game stats included.', '♣'),
-      opt('detailed', 'Detailed', 'Record every hand: who won, the pot and a tag. Adds hand stats.', '♠'));
-  }
-
-  /* ---------- step 2 ---------- */
   /* currency plus "N chips = money" with the value of one chip; after() runs on every change */
   function rateBlock(after) {
     const dr = d();
@@ -334,30 +322,38 @@
       out);
   }
 
-  function stepMoney() {
+  /* ---------- more options: every extra on one page, each a switch that is off by default ---------- */
+  function moreTab() {
     const dr = d();
-    const ruleText = h('div', { class: 'muted small' });
-    const showRule = () => {
-      const hc = handCents(), hk = handChips();
-      ruleText.textContent = hc == null || !hk ? ''
-        : dr.buyinFixed ? T('Every buy-in is exactly {chips} chips ({money}). No other amounts.', { chips: U.fmtChips(hk), money: Core.fmt(hc, sym()) })
-        : T('Players type any amount in money or chips. {money} is the quick default.', { money: Core.fmt(hc, sym()) });
-    };
+    const hc = handCents(), hk = handChips();
+    const rate = hc != null && hk ? { chips: U.fmtChips(hk), money: Core.fmt(hc, sym()) } : null;
     return h('div', { class: 'stack' },
-      rateBlock(showRule),
-      h('hr'),
-      h('div', { class: 'label' }, T('Buy-in rules')),
-      seg([['any', T('Any amount')], ['fixed', T('Fixed amount only')]], dr.buyinFixed ? 'fixed' : 'any', v => S.commit(() => { dr.buyinFixed = v === 'fixed'; })),
-      ruleText,
-      toggle(T('No buying in for more than the chip leader has'), dr.leaderCap, v => S.commit(() => { dr.leaderCap = v; })),
-      dr.leaderCap ? h('div', { class: 'muted small' }, T('Only asked when someone buys in for more than {money}: you enter the chip leader’s stack, and bigger buy-ins are blocked.', { money: Core.fmt(handCents() || 0, sym()) })) : null);
+      option(T('Detailed mode'), T('Shows the poker table and records every hand: who won, the pot and a tag. Adds hand stats. When off, the game is a list of players and their buy-ins.'),
+        dr.mode === 'detailed', v => { dr.mode = v ? 'detailed' : 'simple'; if (!v) dr.pickSeats = false; }),
+      option(T('Fixed buy-ins only'), rate ? T('Every buy-in is exactly {chips} chips ({money}). No other amounts.', rate) : null,
+        dr.buyinFixed, v => { dr.buyinFixed = v; }),
+      option(T('No buying in for more than the chip leader has'),
+        T('Only asked when someone buys in for more than {chips} chips: you enter the chip leader’s stack, and bigger buy-ins are blocked.', { chips: U.fmtChips(hk || 0) }),
+        dr.leaderCap, v => { dr.leaderCap = v; }),
+      option(T('Host fee (rake)'), T('The host takes a percentage of each pot.'),
+        dr.fee.on, v => { dr.fee.on = v; }, feeEditor),
+      option(T('Blinds timer'), T('Raises the blinds on a timer, with a bell at each new level.'),
+        dr.blinds.on, v => { dr.blinds.on = v; }, blindsEditor),
+      dr.mode === 'detailed' ? option(T('Choose seats'), T('When off, players sit side by side in the order you add them.'),
+        dr.pickSeats, v => { dr.pickSeats = v; }, seatsEditor) : null);
   }
 
-  /* ---------- step 3 ---------- */
-  function stepColours() {
+  function option(title, desc, on, set, body) {
+    return h('div', { class: 'card stack-s' },
+      toggle(title, on, v => S.commit(() => set(v))),
+      desc ? h('div', { class: 'muted small' }, desc) : null,
+      on && body ? h('div', { class: 'stack opt-body' }, body()) : null);
+  }
+
+  function colourEditor() {
     const dr = d();
-    dr.chipSet = 'custom'; /* once the host looks at the colours, keep them as they are */
     const value = cv();
+    if (value == null) return h('div', { class: 'warn small' }, T('One chip must be a whole number of cents.'));
     const warn = h('div', { class: 'warn small' });
     const bankLine = h('div', { class: 'derived' });
     const checkHand = () => {
@@ -405,51 +401,44 @@
         h('button', { class: 'icon-btn', 'aria-label': T('Remove'), onclick: () => S.commit(() => { dr.colours = dr.colours.filter(x => x !== c); }) }, '✕'));
     });
     checkHand();
-    return h('div', { class: 'stack' },
-      h('div', { class: 'muted small' }, T('1 chip = {v}', { v: Core.fmt(value, sym()) }) + ' · ' + T('Set each colour’s value and how many of it the house has.')),
+    return [
+      h('div', { class: 'muted small' }, T('Set each colour’s value and how many of it the house has.')),
       seg([['chips', T('Value in chips')], ['money', T('Value in money')]], dr.colourUnit, v => S.commit(() => { dr.colourUnit = v; })),
       h('div', { class: 'stack-s' }, rows),
       h('button', { class: 'btn ghost', onclick: () => S.commit(() => { dr.colours.push({ id: U.uid(), name: T('Blue'), color: '#2f6fdb', chips: 5000, have: null }); }) }, '+ ' + T('Add colour')),
-      bankLine, warn);
+      bankLine, warn];
   }
 
-  /* ---------- step 4 ---------- */
-  function stepHost() {
+  function feeEditor() {
     const dr = d();
-    const feeBox = h('div', { class: 'stack' + (dr.fee.on ? '' : ' hidden') },
+    return [
       h('div', { class: 'grid2' },
         h('label', { class: 'field' }, h('span', null, T('Percent of pot')),
           h('div', { class: 'row gap-s' }, h('input', { type: 'text', inputMode: 'decimal', value: dr.fee.pct, oninput: e => { dr.fee.pct = e.target.value; save(); } }), h('span', null, '%'))),
         h('label', { class: 'field' }, h('span', null, T('No rake below (chips)')),
           h('input', { type: 'text', inputMode: 'numeric', value: dr.fee.minPot, oninput: e => { dr.fee.minPot = e.target.value; save(); } }))),
-      seg([['plays', T('Host plays')], ['hosts', T('Host only hosts')]], dr.hostPlays ? 'plays' : 'hosts', v => S.commit(() => { dr.hostPlays = v === 'plays'; })),
-      dr.hostPlays
-        ? h('div', { class: 'muted small' }, T('You’ll pick the host from the seated players in the next step.'))
-        : h('label', { class: 'field' }, h('span', null, T('Host name')),
-          h('input', { type: 'text', value: dr.hostName, maxLength: 24, list: 'profile-names', oninput: e => { dr.hostName = e.target.value; save(); } }),
-          h('datalist', { id: 'profile-names' }, S.db.profiles.map(p => h('option', { value: p.name })))));
+      hostPicker()];
+  }
+
+  function blindsEditor() {
+    const dr = d();
     const levels = h('div', { class: 'stack-s' }, dr.blinds.levels.map((l, i) => h('div', { class: 'row gap-s level-row' },
       h('span', { class: 'muted small w-xs' }, String(i + 1)),
       h('input', { type: 'text', inputMode: 'numeric', value: String(l.sb), class: 'w-md', 'aria-label': T('Small blind'), oninput: e => { l.sb = Core.parseInt0(e.target.value) || 0; save(); } }),
       h('span', null, '/'),
       h('input', { type: 'text', inputMode: 'numeric', value: String(l.bb), class: 'w-md', 'aria-label': T('Big blind'), oninput: e => { l.bb = Core.parseInt0(e.target.value) || 0; save(); } }),
       h('button', { class: 'icon-btn', 'aria-label': T('Remove'), onclick: () => S.commit(() => { dr.blinds.levels.splice(i, 1); }) }, '✕'))));
-    const blindsBox = h('div', { class: 'stack' + (dr.blinds.on ? '' : ' hidden') },
+    return [
       h('label', { class: 'field' }, h('span', null, T('Minutes per level')),
         h('input', { type: 'text', inputMode: 'numeric', class: 'w-md', value: dr.blinds.minutes, oninput: e => { dr.blinds.minutes = e.target.value; save(); } })),
       h('div', { class: 'label' }, T('Blind levels (small / big)')), levels,
       h('button', { class: 'btn ghost', onclick: () => S.commit(() => {
         const last = dr.blinds.levels[dr.blinds.levels.length - 1] || { sb: 25, bb: 50 };
         dr.blinds.levels.push({ sb: last.sb * 2, bb: last.bb * 2 });
-      }) }, '+ ' + T('Add level')));
-    return h('div', { class: 'stack' },
-      toggle(T('Host fee (rake)'), dr.fee.on, v => S.commit(() => { dr.fee.on = v; })), feeBox,
-      h('hr'),
-      toggle(T('Blinds timer'), dr.blinds.on, v => S.commit(() => { dr.blinds.on = v; })), blindsBox);
+      }) }, '+ ' + T('Add level'))];
   }
 
-  /* ---------- step 5 ---------- */
-  function stepSeats() {
+  function seatsEditor() {
     const dr = d();
     const tableHolder = h('div');
     const draw = () => {
@@ -460,22 +449,21 @@
         centre: h('div', { class: 'centre-info' },
           h('div', { class: 'logo-mini' }, '♠'),
           dr.fee.on && !dr.hostPlays ? h('div', { class: 'house-spot' }, '🏠 ' + (dr.hostName || T('House'))) : null,
-          h('div', { class: 'muted small' }, T('{n} seated', { n: dr.seats.filter(Boolean).length }))),
+          h('div', { class: 'muted small' }, T('{n} seated', { n: seated().length }))),
         seat: i => {
           const pid = dr.seats[i];
-          if (!pid) return TV.emptySeat(i);
+          if (!pid) return h('div', { class: 'seat empty' }, h('small', null, T('Seat {n}', { n: i + 1 })));
           return h('div', { class: 'seat filled' }, h('div', { class: 'avatar' }, initials(S.nameOf(pid))), h('div', { class: 'seat-name' }, S.nameOf(pid)));
         },
+        /* players are added on Basics; here a tap only moves someone to another seat */
         onSeat: i => {
           const pid = dr.seats[i];
-          if (!pid) {
-            TV.pickPlayer({ exclude: dr.seats.filter(Boolean) }).then(p => { if (p) { Snd.clack(); S.commit(() => { dr.seats[i] = p.id; }); } });
-            return;
-          }
-          U.sheet(api => h('div', { class: 'stack' },
-            h('h3', null, S.nameOf(pid)),
-            dr.fee.on && dr.hostPlays ? h('button', { class: 'btn', onclick: () => { api.close(); S.commit(() => { dr.hostPid = pid; }); } }, '🔘 ' + T('Make host (dealer button)')) : null,
-            h('button', { class: 'btn danger ghost', onclick: () => { api.close(); S.commit(() => { dr.seats[i] = null; if (dr.hostPid === pid) dr.hostPid = null; }); } }, T('Remove from table'))), { cls: 'small' });
+          if (!pid) return;
+          U.sheet(api => h('div', { class: 'stack' }, h('h3', null, T('Move {name} to…', { name: S.nameOf(pid) })),
+            h('div', { class: 'seat-grid' }, dr.seats.map((o, k) => h('button', { class: 'pill' + (k === i ? ' on' : ''), disabled: k === i, onclick: () => {
+              S.commit(() => { dr.seats[i] = o; dr.seats[k] = pid; });
+              Snd.card(); api.close();
+            } }, T('Seat {n}', { n: k + 1 }) + (o && k !== i ? ' ⇄ ' + S.nameOf(o) : ''))))), { cls: 'small' });
         },
       }));
     };
@@ -485,7 +473,7 @@
       if (t && !U.reduced()) t.classList.add('shuffling');
       [0, 120, 240, 360, 480].forEach(ms => setTimeout(Snd.card, ms));
       setTimeout(() => {
-        const people = dr.seats.filter(Boolean);
+        const people = seated();
         const order = Array.from({ length: dr.seatsN }, (_, i) => i);
         for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
         const seats = Array(dr.seatsN).fill(null);
@@ -493,11 +481,11 @@
         S.commit(() => { dr.seats = seats; });
       }, U.reduced() ? 0 : 650);
     };
-    return h('div', { class: 'stack' },
+    return [
       h('div', { class: 'row gap wrap' },
         h('span', { class: 'muted small' }, T('Seats')),
-        seg([6, 8, 9, 10].map(n => [n, String(n)]), dr.seatsN, n => {
-          const people = dr.seats.filter(Boolean);
+        seg(SIZES.map(n => [n, String(n)]), dr.seatsN, n => {
+          const people = seated();
           if (people.length > n) { U.toast(T('Too many players for {n} seats', { n }), 'bad'); Snd.buzz(); return; }
           S.commit(() => {
             const seats = Array(n).fill(null);
@@ -508,9 +496,8 @@
           });
         })),
       tableHolder,
-      h('div', { class: 'row gap' },
-        h('button', { class: 'btn ghost grow', onclick: shuffle, disabled: dr.seats.filter(Boolean).length < 2 }, '🔀 ' + T('Shuffle seats'))),
-      h('div', { class: 'muted small center' }, T('Tap an empty seat to add a player.')));
+      h('button', { class: 'btn ghost', onclick: shuffle, disabled: seated().length < 2 }, '🔀 ' + T('Shuffle seats')),
+      h('div', { class: 'muted small center' }, T('Tap a player to move them to another seat.'))];
   }
 
   /* ---------- little controls ---------- */

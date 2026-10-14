@@ -10,7 +10,7 @@
     profiles: [],   // {id, name, etransfer, wechat, createdAt}
     games: [],      // finished games
     current: null,  // game in progress (phase 'play' or 'count')
-    draft: null,    // setup wizard in progress
+    draft: null,    // game setup in progress
     lastBackup: 0,
   });
 

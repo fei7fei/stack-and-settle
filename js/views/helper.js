@@ -25,11 +25,11 @@
       const update = () => {
         const tot = Core.mixTotal(counts, colours);
         const ok = free ? tot > 0 && tot <= max : tot === o.target;
-        if (free) totalEl.textContent = T('Total {n} chips = {m}', { n: U.fmtChips(tot), m: Core.fmt(tot * c.cv, c.symbol) });
+        if (free) totalEl.textContent = T('Total {n} chips', { n: U.fmtChips(tot) });
         else totalEl.textContent = U.fmtChips(tot) + ' / ' + U.fmtChips(o.target) + (ok ? ' ✓' : '');
         totalEl.classList.toggle('ok', ok);
         confirm.disabled = !ok;
-        confirm.textContent = ok ? T('Confirm {m}', { m: Core.fmt(tot * c.cv, c.symbol) }) : free ? (tot > max ? T('Over the chip leader ({n} max)', { n: U.fmtChips(max) }) : T('Add some chips')) : (tot > o.target ? T('{n} too many', { n: U.fmtChips(tot - o.target) }) : T('{n} to go', { n: U.fmtChips(o.target - tot) }));
+        confirm.textContent = ok ? T('Confirm {m}', { m: T('{n} chips', { n: U.fmtChips(tot) }) }) : free ? (tot > max ? T('Over the chip leader ({n} max)', { n: U.fmtChips(max) }) : T('Add some chips')) : (tot > o.target ? T('{n} too many', { n: U.fmtChips(tot - o.target) }) : T('{n} to go', { n: U.fmtChips(o.target - tot) }));
       };
       confirm.addEventListener('click', () => {
         const tot = Core.mixTotal(counts, colours);
@@ -64,7 +64,7 @@
       return h('div', { class: 'stack' },
         h('h3', null, o.title),
         free ? h('div', { class: 'muted' }, T('Build by colours: hand out any chips, the total becomes the buy-in.'))
-          : h('div', null, h('strong', null, Core.fmt(o.target * c.cv, c.symbol) + ' = ' + T('{n} chips', { n: U.fmtChips(o.target) })),
+          : h('div', null, h('strong', null, T('{n} chips', { n: U.fmtChips(o.target) })),
             !impossible ? h('div', { class: 'muted small' }, T('Suggested') + ': ' + Game.mixText(sugg.mix, colours)) : null),
         impossible && !free ? h('div', { class: 'warn' }, T('{n} chips can’t be made exactly with your colours.', { n: U.fmtChips(o.target) })) : null,
         sugg.short && !free ? h('div', { class: 'warn small' }, T('The bank is short of some colours, so this mix ignores the bank counts.')) : null,

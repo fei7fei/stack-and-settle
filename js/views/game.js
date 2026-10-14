@@ -1,4 +1,5 @@
-/* Live game: table, buy-ins, colour helper, rake, hands, blinds, counting and calculate. */
+/* Live game: table, buy-ins, colour helper, rake, hands, blinds, counting and calculate.
+   Everything here is shown in chips; money only appears in setup and the results. */
 (function () {
   'use strict';
   const Game = window.Game = {};
@@ -6,7 +7,9 @@
 
   const g = () => S.db.current;
   const cfg = () => g().config;
-  const money = cents => Core.fmt(cents, cfg().symbol);
+  const chipsText = n => T('{n} chips', { n: U.fmtChips(n) });
+  /* Detailed mode shows the poker table and records hands; Simple mode is a plain list of players and their buy-ins */
+  const detailed = () => cfg().mode === 'detailed';
   const seatPlayer = i => g().players.find(p => !p.hostOnly && p.seat === i) || null;
   const player = pid => g().players.find(p => p.pid === pid) || null;
   const seated = () => g().players.filter(p => !p.hostOnly);
@@ -52,7 +55,6 @@
       seat: i => {
         const p = seatPlayer(i);
         if (!p) return TV.emptySeat(i, phase === 'play' ? T('Join') : '');
-        const paid = Core.paidChips(p) * cfg().cv;
         if (phase === 'count') {
           const done = Core.isCounted(p);
           const chips = p.cashedOut ? p.cashedOut.chips : p.finalChips;
@@ -63,19 +65,28 @@
         return h('div', { class: 'seat filled' + (p.cashedOut ? ' out' : '') },
           TV.stack(Math.max(p.buyins.length, 0), cfg().colours),
           h('div', { class: 'seat-name' }, (leader === p.pid ? '🔁 ' : '') + p.name),
-          h('div', { class: 'seat-sub' }, p.cashedOut ? T('out') : money(paid)));
+          h('div', { class: 'seat-sub' }, p.cashedOut ? T('out') : U.fmtChips(Core.paidChips(p))));
       },
       onSeat: i => {
         const p = seatPlayer(i);
         if (p) { if (phase === 'count') counter(p.pid); else panel(p.pid); return; }
         if (phase === 'count') return;
-        TV.pickPlayer({ exclude: g().players.map(x => x.pid), title: T('Late joiner') }).then(prof => {
-          if (!prof) return;
-          Snd.clack();
-          S.commit(() => { g().players.push(Game.newPlayer(prof.id, i)); });
-          panel(prof.id);
-        });
+        lateJoiner(i);
       },
+    });
+  }
+
+  /* add someone mid-game: at seat i on the table, or at the end of the list in Simple mode */
+  function lateJoiner(i) {
+    TV.pickPlayer({ exclude: g().players.map(x => x.pid), title: T('Late joiner') }).then(prof => {
+      if (!prof) return;
+      Snd.clack();
+      S.commit(() => {
+        const seat = i != null ? i : seated().reduce((m, p) => Math.max(m, p.seat + 1), 0);
+        if (seat >= cfg().seats) cfg().seats = seat + 1;
+        g().players.push(Game.newPlayer(prof.id, seat));
+      });
+      panel(prof.id);
     });
   }
 
@@ -85,24 +96,33 @@
     const issued = Core.issuedChips(game);
     const tiles = [
       tile(T('Chips on table'), U.fmtChips(Core.inPlayChips(game))),
-      tile(T('Money in'), money(Core.paidCents(game))),
+      tile(T('Chips bought'), U.fmtChips(issued)),
       tile(T('Elapsed'), U.fmtDur(Date.now() - game.startedAt), { elapsed: true }),
     ];
-    if (Core.bankTracked(game)) tiles.push(tile(T('Bank'), money(bankChips() * c.cv), { onclick: bankSheet, cls: 'tap' }));
+    if (Core.bankTracked(game)) tiles.push(tile(T('Bank'), U.fmtChips(bankChips()), { onclick: bankSheet, cls: 'tap' }));
     if (c.fee.on) tiles.push(tile(T('House pile'), U.fmtChips(Core.rakeTotal(game)), { onclick: houseSheet, cls: 'tap' }));
     if (c.mode === 'detailed') tiles.push(tile(T('Hands'), String(game.hands.length)));
     const actions = h('div', { class: 'actions' },
       c.fee.on ? h('button', { class: 'btn', onclick: () => rakeSheet() }, '🏠 ' + T('Rake')) : null,
       c.mode === 'detailed' ? h('button', { class: 'btn', onclick: handSheet }, '🂠 ' + T('Record hand')) : null,
       h('button', { class: 'btn primary', onclick: endGame }, T('End game') + ' →'));
+    const everyone = issued === 0 && seated().length ? h('button', { class: 'btn primary block pulse', onclick: everyoneBuysIn }, T('Everyone buys in {m}', { m: chipsText(c.handChips) })) : null;
+    if (!detailed()) {
+      return h('div', { class: 'screen game' },
+        h('div', { class: 'tiles' }, tiles),
+        c.blinds.on ? blindsBar() : null,
+        everyone,
+        playerList(true),
+        actions);
+    }
     return h('div', { class: 'screen game' },
       h('div', { class: 'tiles' }, tiles),
       c.blinds.on ? blindsBar() : null,
       tableView('play'),
-      issued === 0 && seated().length ? h('button', { class: 'btn primary block pulse', onclick: everyoneBuysIn }, T('Everyone buys in {m}', { m: money(c.handCents) })) : null,
+      everyone,
       actions,
-      playerList(),
-      c.mode === 'detailed' ? handLog() : null);
+      playerList(false),
+      handLog());
   }
 
   function everyoneBuysIn() {
@@ -125,26 +145,48 @@
     show();
   }
 
-  function playerList() {
+  /* the players and their buy-ins; in Simple mode this is the main view, with a one-tap buy-in on each row and a way to add late joiners */
+  function playerList(main) {
     const c = cfg();
     const leader = rebuyLeader();
     const ps = seated().slice().sort((a, b) => a.seat - b.seat);
-    if (!ps.length) return null;
-    return h('div', { class: 'card' },
+    if (!ps.length && !main) return null;
+    return h('div', { class: 'card' + (main ? ' player-list' : '') },
       h('div', { class: 'card-title' }, T('Players')),
       h('table', { class: 'list-table' },
-        h('thead', null, h('tr', null, h('th', null, T('Player')), h('th', { class: 'num' }, T('Buy-ins')), h('th', { class: 'num' }, T('In')))),
+        h('thead', null, h('tr', null, h('th', null, T('Player')), h('th', { class: 'num' }, T('Buy-ins')), h('th', { class: 'num' }, T('In')), main ? h('th') : null)),
         h('tbody', null, ps.map(p => h('tr', { onclick: () => panel(p.pid), class: 'tap' },
           h('td', null, p.name, g().hostPid === p.pid ? h('span', { class: 'tag' }, T('host')) : null,
             leader === p.pid ? h('span', { class: 'tag' }, '🔁 ' + T('most rebuys')) : null,
             p.cashedOut ? h('span', { class: 'tag muted' }, T('cashed out')) : null),
           h('td', { class: 'num' }, String(p.buyins.length)),
-          h('td', { class: 'num' }, money(Core.paidChips(p) * c.cv)))))));
+          h('td', { class: 'num' }, U.fmtChips(Core.paidChips(p))),
+          main ? h('td', { class: 'num' }, p.cashedOut ? null : h('button', {
+            class: 'btn small', 'aria-label': T('Buy-in for {name}', { name: p.name }),
+            onclick: e => { e.stopPropagation(); buy(p.pid, c.handChips); },
+          }, '+' + U.fmtChips(c.handChips))) : null)))),
+      main ? h('button', { class: 'btn ghost block', onclick: () => lateJoiner(null) }, '+ ' + T('Add player')) : null);
+  }
+
+  /* Simple mode's counting view: tap a player to count their chips */
+  function countList() {
+    const ps = seated().slice().sort((a, b) => a.seat - b.seat);
+    return h('div', { class: 'card player-list' },
+      h('div', { class: 'card-title' }, T('Players')),
+      h('table', { class: 'list-table' },
+        h('thead', null, h('tr', null, h('th', null, T('Player')), h('th', { class: 'num' }, T('In')), h('th', { class: 'num' }, T('Counted')))),
+        h('tbody', null, ps.map(p => {
+          const done = Core.isCounted(p);
+          return h('tr', { onclick: () => counter(p.pid), class: 'tap' + (done ? '' : ' pending') },
+            h('td', null, p.name),
+            h('td', { class: 'num' }, U.fmtChips(Core.paidChips(p))),
+            h('td', { class: 'num' }, done ? '✓ ' + U.fmtChips(p.cashedOut ? p.cashedOut.chips : p.finalChips) : h('span', { class: 'muted' }, T('counting…'))));
+        }))));
   }
 
   /* ---------- player panel ---------- */
   function panel(pid) {
-    const st = { unit: 'money', other: false, more: false };
+    const st = { other: false, more: false };
     U.sheet(api => {
       const p = player(pid);
       if (!p) { setTimeout(api.close); return h('div'); }
@@ -154,11 +196,10 @@
       return h('div', { class: 'stack' },
         h('div', { class: 'row between' },
           h('h3', null, p.name, g().hostPid === pid ? h('span', { class: 'tag' }, T('host')) : null),
-          h('div', { class: 'muted small' }, T('Seat {n}', { n: p.seat + 1 }))),
+          detailed() ? h('div', { class: 'muted small' }, T('Seat {n}', { n: p.seat + 1 })) : null),
         h('div', { class: 'kpis' },
-          h('div', null, h('small', null, T('Total in')), h('strong', null, money(Core.paidChips(p) * c.cv))),
-          h('div', null, h('small', null, T('Buy-ins')), h('strong', null, String(p.buyins.length))),
-          h('div', null, h('small', null, T('Chips bought')), h('strong', null, U.fmtChips(Core.paidChips(p))))),
+          h('div', null, h('small', null, T('Chips bought')), h('strong', null, U.fmtChips(Core.paidChips(p)))),
+          h('div', null, h('small', null, T('Buy-ins')), h('strong', null, String(p.buyins.length)))),
         p.cashedOut ? h('div', { class: 'notice' },
           T('Cashed out {n} chips at {t}', { n: U.fmtChips(p.cashedOut.chips), t: U.fmtTime(p.cashedOut.t) }),
           h('button', { class: 'btn small', onclick: () => { S.commit(() => { p.cashedOut = null; p.finalChips = null; }); api.refresh(); } }, T('Undo cash-out'))) : null,
@@ -167,12 +208,11 @@
           h('div', { class: 'label' }, T('Buy-in log')),
           p.buyins.slice().reverse().map(b => h('div', { class: 'log-row' },
             h('span', { class: 'muted' }, U.fmtTime(b.t)),
-            h('span', { class: 'grow col' }, h('span', null, U.fmtChips(b.chips) + ' ' + T('chips')),
+            h('span', { class: 'grow col' }, h('strong', null, chipsText(b.chips)),
               b.mix ? h('small', { class: 'muted' }, mixText(b.mix, c.colours)) : null),
-            h('strong', null, money(b.chips * c.cv)),
             h('button', { class: 'icon-btn', 'aria-label': T('Change colours'), onclick: () => changeColours(pid, b.id, api) }, '✎'),
             h('button', { class: 'icon-btn', 'aria-label': T('Undo'), onclick: () => {
-              U.ask({ title: T('Undo this buy-in?'), body: money(b.chips * c.cv) + ' · ' + U.fmtTime(b.t), ok: T('Undo'), danger: true }).then(ok => {
+              U.ask({ title: T('Undo this buy-in?'), body: chipsText(b.chips) + ' · ' + U.fmtTime(b.t), ok: T('Undo'), danger: true }).then(ok => {
                 if (!ok) return;
                 S.commit(() => { p.buyins = p.buyins.filter(x => x.id !== b.id); });
                 api.refresh();
@@ -188,7 +228,7 @@
         st.more ? h('div', { class: 'grid2' },
           h('button', { class: 'btn ghost', onclick: () => rename(pid, api) }, T('Rename')),
           h('button', { class: 'btn ghost', onclick: () => handles(pid, api) }, T('Handles')),
-          h('button', { class: 'btn ghost', onclick: () => moveSeat(pid, api) }, T('Move seat')),
+          detailed() ? h('button', { class: 'btn ghost', onclick: () => moveSeat(pid, api) }, T('Move seat')) : null,
           g().config.fee.on && g().hostPlays && g().hostPid !== pid ? h('button', { class: 'btn ghost', onclick: () => { S.commit(() => { g().hostPid = pid; }); api.refresh(); } }, '🔘 ' + T('Make host')) : null,
           !p.buyins.length && g().hostPid !== pid ? h('button', { class: 'btn ghost danger', onclick: () => { api.close(); S.commit(() => { g().players = g().players.filter(x => x.pid !== pid); }); } }, T('Remove')) : null) : null,
         st.more && (prof.etransfer || prof.wechat) ? h('div', { class: 'muted small' },
@@ -208,13 +248,13 @@
   }
 
   /* Buy-in buttons in the player panel: one tap records the buy-in with a suggested colour mix.
-     Fixed mode: whole buy-ins only. Otherwise quick amounts plus "Other amount" in money or chips. */
+     Fixed mode: whole buy-ins only. Otherwise quick amounts plus "Other" for any number of chips. */
   function buyBox(pid, panelApi, st) {
     const c = cfg(), rules = c.buyin || {};
     const half = c.handChips % 2 === 0 ? c.handChips / 2 : null;
     const quick = rules.fixed
-      ? [['+1 ' + T('buy-in') + ' · ' + money(c.handCents), c.handChips], ['+2 · ' + money(c.handCents * 2), c.handChips * 2]]
-      : [half, c.handChips, c.handChips * 2].filter(Boolean).map(n => ['+' + money(n * c.cv), n]);
+      ? [['+1 ' + T('buy-in') + ' · ' + U.fmtChips(c.handChips), c.handChips], ['+2 · ' + U.fmtChips(c.handChips * 2), c.handChips * 2]]
+      : [half, c.handChips, c.handChips * 2].filter(Boolean).map(n => ['+' + U.fmtChips(n), n]);
     const buttons = quick.map(([label, chips]) => h('button', { class: 'btn', onclick: () => buy(pid, chips, panelApi) }, label));
     if (rules.fixed) return h('div', { class: 'stack-s' }, h('div', { class: 'quick-row' }, buttons));
     if (!st.other) {
@@ -227,31 +267,20 @@
     const out = h('div', { class: 'muted small' });
     const go = h('button', { class: 'btn primary', disabled: true, onclick: () => { if (typed) buy(pid, typed, panelApi); } }, T('Buy in'));
     const input = h('input', {
-      type: 'text', inputMode: st.unit === 'money' ? 'decimal' : 'numeric', class: 'grow', 'data-amount': '1',
-      placeholder: st.unit === 'money' ? (c.handCents / 100).toFixed(2) : String(c.handChips), 'aria-label': T('Buy-in amount'),
+      type: 'text', inputMode: 'numeric', class: 'grow', 'data-amount': '1',
+      placeholder: String(c.handChips), 'aria-label': T('Buy-in amount'),
       oninput: () => sync(), onkeydown: e => { if (e.key === 'Enter') go.click(); },
     });
     function sync() {
-      typed = null;
       const v = input.value.trim();
-      if (!v) out.textContent = '';
-      else if (st.unit === 'money') {
-        const cents = Core.parseMoney(v);
-        if (cents == null || cents <= 0) out.textContent = T('Enter an amount');
-        else if (cents % c.cv) out.textContent = T('Must be a multiple of one chip ({v}).', { v: money(c.cv) });
-        else { typed = cents / c.cv; out.textContent = '= ' + T('{n} chips', { n: U.fmtChips(typed) }); }
-      } else {
-        typed = Core.parseInt0(v) || null;
-        out.textContent = typed ? '= ' + money(typed * c.cv) : T('Enter whole chips');
-      }
+      typed = Core.parseInt0(v) || null;
+      out.textContent = !v ? '' : typed ? '= ' + chipsText(typed) : T('Enter whole chips');
       out.className = 'small ' + (!v ? 'muted' : typed ? 'win' : 'bad-text');
       go.disabled = !typed;
     }
     return h('div', { class: 'stack-s' },
       h('div', { class: 'quick-row' }, buttons),
-      h('div', { class: 'row gap-s' },
-        Setup.seg([['money', T('Money')], ['chips', T('Chips')]], st.unit, v => { st.unit = v; panelApi.refresh(); }),
-        input, go),
+      h('div', { class: 'row gap-s' }, input, h('span', null, T('chips')), go),
       out);
   }
 
@@ -278,7 +307,7 @@
           const take = Math.min(chips, leader);
           msg.className = 'small ' + (take < chips ? 'bad-text' : 'win');
           msg.textContent = take < chips ? T('That’s more than the chip leader has. The most is {n} chips.', { n: U.fmtChips(leader) }) : '✓';
-          ok.textContent = T('Buy in {m}', { m: money(take * cfg().cv) });
+          ok.textContent = T('Buy in {m}', { m: chipsText(take) });
         };
         ok.addEventListener('click', () => {
           if (!leader) return;
@@ -310,7 +339,7 @@
     const c = cfg(), p = player(pid), id = U.uid();
     Snd.clack();
     S.commit(() => { p.buyins.push({ id, t: Date.now(), chips, mix }); });
-    U.toast(T('Give {name} {mix}', { name: p.name, mix: mixText(mix, c.colours) }) + ' · ' + money(chips * c.cv), 'good', {
+    U.toast(T('Give {name} {mix}', { name: p.name, mix: mixText(mix, c.colours) }) + ' · ' + chipsText(chips), 'good', {
       label: T('Undo'),
       fn: () => { S.commit(() => { p.buyins = p.buyins.filter(b => b.id !== id); }); if (panelApi) panelApi.refresh(); },
     });
@@ -346,8 +375,7 @@
         h('h3', null, '🏦 ' + T('Bank')),
         h('div', { class: 'kpis' },
           h('div', null, h('small', null, T('Pieces')), h('strong', null, U.fmtChips(pieces))),
-          h('div', null, h('small', null, T('Chips')), h('strong', null, U.fmtChips(total))),
-          h('div', null, h('small', null, T('Value')), h('strong', null, money(total * c.cv)))),
+          h('div', null, h('small', null, T('Chips')), h('strong', null, U.fmtChips(total)))),
         h('div', { class: 'stack-s' }, c.colours.slice().sort((a, b) => b.chips - a.chips).map(col => h('div', { class: 'count-row' },
           h('span', { class: 'swatch', style: { background: col.color } }),
           h('span', { class: 'grow' }, col.name, h('small', { class: 'muted' }, ' × ' + U.fmtChips(col.chips))),
@@ -429,9 +457,9 @@
       const valueEl = h('div', { class: 'muted' });
       const update = () => {
         const tot = Core.mixTotal(counts, c.colours) + extra;
-        totalEl.textContent = U.fmtChips(tot) + ' ' + T('chips');
-        const net = (tot - Core.paidChips(p)) * c.cv;
-        valueEl.textContent = money(tot * c.cv) + ' · ' + T('result') + ' ' + Core.fmt(net, c.symbol, true);
+        totalEl.textContent = chipsText(tot);
+        const net = tot - Core.paidChips(p);
+        valueEl.textContent = T('result') + ' ' + (net > 0 ? '+' : '') + chipsText(net);
         valueEl.className = net > 0 ? 'win' : net < 0 ? 'loss' : 'muted';
       };
       const rows = c.colours.slice().sort((a, b) => b.chips - a.chips).map(col => {
@@ -464,7 +492,7 @@
       };
       return h('div', { class: 'stack' },
         h('h3', null, (cashOut ? T('Cash out') : T('Count chips')) + ' · ' + p.name),
-        h('div', { class: 'muted small' }, T('Paid in {m} ({n} chips)', { m: money(Core.paidChips(p) * c.cv), n: U.fmtChips(Core.paidChips(p)) })),
+        h('div', { class: 'muted small' }, T('Bought {n} chips', { n: U.fmtChips(Core.paidChips(p)) })),
         h('div', { class: 'stack-s' }, rows),
         h('div', { class: 'count-row' }, h('span', { class: 'grow muted small' }, T('Other chips (loose total)')), extraInp),
         h('div', { class: 'count-sum' }, totalEl, valueEl),
@@ -494,7 +522,7 @@
         const grab = Core.grabMix(take, c.colours);
         U.append(out, [
           h('div', { class: 'big-msg' }, T('Take out {n} chips', { n: U.fmtChips(take) })),
-          h('div', { class: 'muted small' }, Core.fmtPct(c.fee.bps) + ' × ' + U.fmtChips(pot) + ' = ' + money(take * c.cv)),
+          h('div', { class: 'muted small' }, Core.fmtPct(c.fee.bps) + ' × ' + U.fmtChips(pot)),
           h('div', { class: 'mix-chips' }, c.colours.filter(col => grab.mix[col.id]).slice().sort((a, b) => b.chips - a.chips).map(col =>
             h('span', { class: 'mix-chip' }, h('span', { class: 'swatch', style: { background: col.color } }), grab.mix[col.id] + ' × ' + col.name))),
           grab.remainder ? h('div', { class: 'warn small' }, T('{n} chips can’t be grabbed exactly. Make change from the pot.', { n: grab.remainder })) : null]);
@@ -522,8 +550,7 @@
       return h('div', { class: 'stack' },
         h('h3', null, '🏠 ' + T('House pile')),
         h('div', { class: 'kpis' },
-          h('div', null, h('small', null, T('Chips')), h('strong', null, U.fmtChips(total))),
-          h('div', null, h('small', null, T('Value')), h('strong', null, money(total * c.cv)))),
+          h('div', null, h('small', null, T('Chips')), h('strong', null, U.fmtChips(total)))),
         game.rake.length ? game.rake.slice().reverse().map(r => h('div', { class: 'log-row' },
           h('span', { class: 'muted' }, U.fmtTime(r.t)),
           h('span', { class: 'grow' }, T('pot {n}', { n: U.fmtChips(r.pot) })),
@@ -657,12 +684,13 @@
     const pending = Core.pendingCount(game);
     const counted = seated().filter(Core.isCounted).reduce((s, p) => s + (p.cashedOut ? p.cashedOut.chips : p.finalChips), 0);
     return h('div', { class: 'screen game counting' },
-      h('div', { class: 'banner' }, game.editOf ? '✏️ ' + T('Editing a past game') : '🧮 ' + T('Count each player’s chips. Tap seats in any order.')),
+      h('div', { class: 'banner' }, game.editOf ? '✏️ ' + T('Editing a past game')
+        : '🧮 ' + (detailed() ? T('Count each player’s chips. Tap seats in any order.') : T('Count each player’s chips. Tap players in any order.'))),
       h('div', { class: 'tiles' },
         tile(T('Chips handed out'), U.fmtChips(Core.issuedChips(game))),
         tile(T('Counted so far'), U.fmtChips(counted)),
         game.config.fee.on ? tile(T('House pile'), U.fmtChips(Core.rakeTotal(game)), { onclick: houseSheet, cls: 'tap' }) : null),
-      tableView('count'),
+      detailed() ? tableView('count') : countList(),
       h('button', { class: 'btn primary block big', disabled: pending > 0, onclick: calculate },
         pending ? T('{n} players still counting', { n: pending }) : T('Calculate')),
       h('div', { class: 'row gap center' },

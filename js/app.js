@@ -41,7 +41,7 @@
     if (App.view) return 'v:' + App.view.id;
     if (App.tab !== 'play') return App.tab;
     if (S.db.current) return 'game:' + S.db.current.id + ':' + S.db.current.phase;
-    if (S.db.draft) return 'draft:' + S.db.draft.step;
+    if (S.db.draft) return 'draft:' + (S.db.draft.more ? 'more' : 'basic');
     return 'home';
   }
 
