@@ -72,7 +72,7 @@ $env:ELECTRON_RUN_AS_NODE='1'; $node="$env:LOCALAPPDATA\Programs\Microsoft VS Co
 Quirks of this setup:
 - Code.exe is a GUI program, so PowerShell's `&` doesn't wait for it and its stdout is often lost. Run it with `Start-Process -FilePath $node -ArgumentList ... -Wait -NoNewWindow`, and send output to a file (the reporter destination above). `--check` doesn't work. That's why `e2e-smoke.js` writes `<outDir>/log.txt`; read that file.
 - `node --test tests/` with a bare directory fails on Node 24, so pass the file.
-- The smoke test serves the folder on port 8765, starts headless Edge on 9333, and plays two full games. Its screenshots are worth looking at after any UI change. If a run hangs, kill the leftover processes whose command line contains `e2e-smoke.js` or `<outDir>\profile` before running again.
+- The smoke test serves the folder on port 8765, starts headless Edge on 9333, and plays two full games. Its screenshots are worth looking at after any UI change. Headless Edge sometimes never answers a screenshot request; `shot()` gives up after 15 s and logs "screenshot timed out" instead of hanging. If a run still hangs, kill the leftover processes whose command line contains `e2e-smoke.js` or `<outDir>\profile` before running again.
 
 ## Status
 

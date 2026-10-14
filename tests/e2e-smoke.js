@@ -36,7 +36,9 @@ async function ev(expr) {
   return r.result.value;
 }
 async function shot(name) {
-  const r = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+  /* headless Edge sometimes never answers a screenshot; log it and carry on instead of hanging the whole run */
+  const r = await Promise.race([send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }), sleep(15000).then(() => null)]);
+  if (!r) { console.log('⚠ screenshot timed out: ' + name); return; }
   fs.writeFileSync(path.join(out, name + '.png'), Buffer.from(r.data, 'base64'));
 }
 // page-side helpers
