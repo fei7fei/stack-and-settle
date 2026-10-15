@@ -1,0 +1,134 @@
+{
+  ".claude/settings.json": {
+    "mtime": 1792034093.366726,
+    "seen": 1792034488.2371216,
+    "ast_hash": "3ac995fbf93552a991ecab9b63f776aa",
+    "semantic_hash": "3ac995fbf93552a991ecab9b63f776aa"
+  },
+  "js/app.js": {
+    "mtime": 1791980775.0339298,
+    "seen": 1792034488.237126,
+    "ast_hash": "488841e9e064227eefda648cb1d1b52a",
+    "semantic_hash": "488841e9e064227eefda648cb1d1b52a"
+  },
+  "js/core.js": {
+    "mtime": 1792025794.41381,
+    "seen": 1792034488.237128,
+    "ast_hash": "9e48188074beb8ec098f285f084fd8b6",
+    "semantic_hash": "9e48188074beb8ec098f285f084fd8b6"
+  },
+  "js/fx.js": {
+    "mtime": 1791974140.063159,
+    "seen": 1792034488.237129,
+    "ast_hash": "0719e169d46635d9966de40097241516",
+    "semantic_hash": "0719e169d46635d9966de40097241516"
+  },
+  "js/i18n.js": {
+    "mtime": 1792037091.1015167,
+    "seen": 1792038608.1318884,
+    "ast_hash": "9d4643c19800244e8e81b105760ca528",
+    "semantic_hash": ""
+  },
+  "js/sound.js": {
+    "mtime": 1791974096.6654387,
+    "seen": 1792034488.2371304,
+    "ast_hash": "535e259a65bee68cf30aba21f190f399",
+    "semantic_hash": "535e259a65bee68cf30aba21f190f399"
+  },
+  "js/store.js": {
+    "mtime": 1792037091.1015167,
+    "seen": 1792038608.131891,
+    "ast_hash": "cccd8334ec9e7085d407d69fc71de008",
+    "semantic_hash": ""
+  },
+  "js/util.js": {
+    "mtime": 1792026576.445002,
+    "seen": 1792034488.237132,
+    "ast_hash": "7f11057b42760a73a0aa2c87689bd32e",
+    "semantic_hash": "7f11057b42760a73a0aa2c87689bd32e"
+  },
+  "js/views/game.js": {
+    "mtime": 1792037091.103025,
+    "seen": 1792038608.1318927,
+    "ast_hash": "0b8b78e05a8934d3a046ecb9a2932b98",
+    "semantic_hash": ""
+  },
+  "js/views/helper.js": {
+    "mtime": 1792026500.0600398,
+    "seen": 1792034488.2371335,
+    "ast_hash": "3576baa8a2b7de10a967aca17a8516e2",
+    "semantic_hash": "3576baa8a2b7de10a967aca17a8516e2"
+  },
+  "js/views/lists.js": {
+    "mtime": 1792037091.103025,
+    "seen": 1792038608.1318946,
+    "ast_hash": "4cda22580306cadb6930ccc498bd03b7",
+    "semantic_hash": ""
+  },
+  "js/views/results.js": {
+    "mtime": 1792037091.1040354,
+    "seen": 1792038608.1318955,
+    "ast_hash": "cb763c4fc3279733edf158b6f5e36a35",
+    "semantic_hash": ""
+  },
+  "js/views/setup.js": {
+    "mtime": 1792037091.1040354,
+    "seen": 1792038608.1318963,
+    "ast_hash": "f06f23a08f8b5c6b330c29cfdb05d77c",
+    "semantic_hash": ""
+  },
+  "js/views/table.js": {
+    "mtime": 1792037198.9882283,
+    "seen": 1792038608.131897,
+    "ast_hash": "7fd9da53b68742ce97a9f07ed8a93e54",
+    "semantic_hash": ""
+  },
+  "package.json": {
+    "mtime": 1791974058.8131008,
+    "seen": 1792034488.2371368,
+    "ast_hash": "044bd1fca7b878a709ed6359694fce36",
+    "semantic_hash": "044bd1fca7b878a709ed6359694fce36"
+  },
+  "tests/core.test.js": {
+    "mtime": 1792025794.4148107,
+    "seen": 1792034488.2371376,
+    "ast_hash": "390abb50f412d4798e5e701852ffc5ec",
+    "semantic_hash": "390abb50f412d4798e5e701852ffc5ec"
+  },
+  "tests/e2e-smoke.js": {
+    "mtime": 1792037284.2486084,
+    "seen": 1792038608.1319,
+    "ast_hash": "6bd7cb5bcf575b9d9816ddd0d78ae7da",
+    "semantic_hash": ""
+  },
+  "tests/i18n-check.js": {
+    "mtime": 1792037091.1060345,
+    "seen": 1792038608.1319013,
+    "ast_hash": "8c278f813616c0cb96c1c1ad9747ca13",
+    "semantic_hash": ""
+  },
+  "BUILD.md": {
+    "mtime": 1792037387.605247,
+    "seen": 1792038608.131902,
+    "ast_hash": "c414304d3ab78d5c90813c7d2cd7eab9",
+    "semantic_hash": ""
+  },
+  "CLAUDE.md": {
+    "mtime": 1792034093.359409,
+    "seen": 1792034488.2371402,
+    "ast_hash": "67d88e9d0760c3ba54c75dfd9551c1c5",
+    "semantic_hash": "67d88e9d0760c3ba54c75dfd9551c1c5"
+  },
+  "README.md": {
+    "mtime": 1792037387.606755,
+    "seen": 1792038608.1319034,
+    "ast_hash": "8694571fd369aa03936296e2098bcf19",
+    "semantic_hash": ""
+  },
+  "index.html": {
+    "mtime": 1791979477.4099498,
+    "seen": 1792034488.2371418,
+    "ast_hash": "5257ea1d46979afa136754955ac77c07",
+    "semantic_hash": "5257ea1d46979afa136754955ac77c07"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "0": "Design Rules & Docs",
+  "1": "Game Screen & Bank",
+  "2": "Core Money Maths",
+  "3": "E2E Smoke Test",
+  "4": "Game Setup Screen",
+  "5": "Results, Sharing & FX",
+  "6": "Core Unit Tests",
+  "7": "Package Config",
+  "8": "App Shell & Routing",
+  "9": "Game Lists & Profiles",
+  "10": "Sound Effects",
+  "11": "UI Utilities",
+  "12": "Translations (i18n)",
+  "13": "Storage (store.js)",
+  "14": "Chip Helper View",
+  "15": "Table View"
+}
