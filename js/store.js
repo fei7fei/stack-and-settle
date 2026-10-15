@@ -8,6 +8,7 @@
     v: 1,
     settings: { theme: 'auto', lang: 'en', sound: true },
     profiles: [],   // {id, name, etransfer, wechat, createdAt}
+    chipSets: [],   // the host's own chip sets: {id, name, colours:[{id,name,color,chips,have}], usedAt}
     games: [],      // finished games
     current: null,  // game in progress (phase 'play' or 'count')
     draft: null,    // game setup in progress
@@ -47,6 +48,19 @@
     return p;
   };
   S.nameOf = id => (S.profile(id) || {}).name || '?';
+
+  /* ---------- saved chip sets ---------- */
+  S.chipSet = id => S.db.chipSets.find(s => s.id === id) || null;
+  S.lastChipSet = () => S.db.chipSets.slice().sort((a, b) => b.usedAt - a.usedAt)[0] || null;
+  /* create or update a saved set (no re-render, so inputs keep focus) */
+  S.saveChipSet = function (id, name, colours) {
+    let set = S.chipSet(id);
+    if (!set) { set = { id }; S.db.chipSets.push(set); }
+    Object.assign(set, { name: String(name || '').trim(), colours: U.clone(colours), usedAt: Date.now() });
+    S.save();
+    return set;
+  };
+  S.deleteChipSet = id => { S.db.chipSets = S.db.chipSets.filter(s => s.id !== id); };
 
   S.game = id => S.db.games.find(g => g.id === id) || null;
   S.lastGame = () => Core.doneGames(S.db.games).slice(-1)[0] || null;

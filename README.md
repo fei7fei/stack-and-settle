@@ -11,7 +11,7 @@ On the phone, use **Add to Home Screen** to get an app icon.
 ## Features
 
 ### Set up a game on one screen
-**New game** opens on **Basics**: what the buy-in costs and how many chips it gets (USD, CAD, CNY, EUR, GBP, AUD, HKD, SGD, NZD or your own symbol), your chip set and the players' names. Pick the 300-chip or 500-chip set, or *My own* to name your colours, set what each one is worth and enter how many of each you have, so the app knows what's left in the bank. Tap **Start game** and you're playing the simplest game: buy-ins, chips and the settle-up at the end. If the numbers don't give a whole-cent chip value, the app suggests the nearest chip count that does.
+**New game** opens on **Basics**: what the buy-in costs and how many chips it gets (USD, CAD, CNY, EUR, GBP, AUD, HKD, SGD, NZD or your own symbol), your chip set and the players' names. Enter your own chips: name each colour, set what it's worth and how many of it you have, so the app knows what's left in the bank. Give the set a name if you like. It's saved as you type and picked again next game, and you can keep several sets and switch between them. Tap **Start game** and you're playing the simplest game: buy-ins, chips and the settle-up at the end. If the numbers don't give a whole-cent chip value, the app suggests the nearest chip count that does.
 
 Everything else sits on the **More options** tab, all on one page, and nothing there repeats the basics. Each extra is a switch, and every switch starts off for a new game:
 

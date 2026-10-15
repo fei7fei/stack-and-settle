@@ -96,15 +96,15 @@ window.sw = (label, on) => { const r = $all('.toggle-row').find(x => x.textConte
   for (const name of ['Alex', 'Ben', 'Cara']) {
     await step('quick add ' + name, `type($q('[data-quick-name]'), '${name}'); btn('Add'); await wait(100); return S.db.draft.seats.filter(Boolean).length;`);
   }
-  await step('300-chip set', `btn('300-chip set'); await wait(100); return $q('.mix-chips').textContent;`);
-  await step('500-chip set', `btn('500-chip set'); await wait(100); return S.db.draft.colours.map(c => c.chips + 'x' + c.have).join(' ');`);
+  await step('name the chip set', `type($q('[aria-label="Chip set name"]'), 'Home set'); await wait(50); return S.db.chipSets.map(s => s.name + ':' + s.colours.map(c => c.chips + 'x' + c.have).join(' '));`);
+  await step('a changed count is saved', `type($all('[aria-label="How many the house has"]')[0], '200'); await wait(50); const a = S.db.chipSets[0].colours[0].have;
+    type($all('[aria-label="How many the house has"]')[0], '150'); await wait(50); return [a, S.db.chipSets[0].colours[0].have];`);
   await shot('03-quick-setup');
   await step('bad chip value rejected', `const ins = $all('.wizard input'); type(ins[1], '300'); type(ins[0], '10'); await wait(50); return $q('.derived').textContent;`, 200);
   await shot('04-money-bad');
   await step('use suggestion', `btn('Use 250'); await wait(50); type($all('.wizard input')[0], '20'); type($all('.wizard input')[1], '1000'); return $q('.derived').textContent;`);
-  await step('own colours on the basics', `btn('My own'); await wait(100); return [S.db.draft.chipSet, S.db.draft.more, $all('.wizard .derived').pop().textContent];`);
+  await step('own colours on the basics', `return [S.db.draft.chipSetName, S.db.draft.more, $all('.wizard .derived').pop().textContent];`);
   await shot('05-colours');
-  await step('back to the 500-chip set', `btn('500-chip set'); await wait(50); return S.db.draft.chipSet;`);
   await step('quick add Dan', `type($q('[data-quick-name]'), 'Dan'); btn('Add'); await wait(100); return S.db.draft.seats.filter(Boolean).length;`);
   await step('more options: everything off', `btn('More options'); await wait(100); return [S.db.draft.more, $all('.wizard .toggle-row').map(r => r.textContent + ':' + r.querySelector('.switch').checked)];`);
   await shot('04b-more-options');
@@ -207,7 +207,7 @@ window.sw = (label, on) => { const r = $all('.toggle-row').find(x => x.textConte
     btn('Calculate'); await wait(400); btn('Distribute', sheet()); await wait(400);
     const g = S.db.games[S.db.games.length - 1]; return { diff: g.final.diff, adj: g.final.rows.map(r => [r.name, r.adj, r.net]), sum: g.final.rows.reduce((s, r) => s + r.net, 0) };`, 1500);
   await step('new game starts with every extra off', `btn('Play'); await wait(100); btn('New game'); await wait(100); const d = S.db.draft;
-    const r = [d.mode, d.buyinFixed, d.leaderCap, d.chipSet, d.fee.on, d.blinds.on, d.pickSeats, $q('.seg-btn.on + .seg-btn').textContent];
+    const r = [d.mode, d.buyinFixed, d.leaderCap, d.chipSetName, d.colours.length, d.fee.on, d.blinds.on, d.pickSeats, $q('.seg-btn.on + .seg-btn').textContent];
     S.commit(db => { db.draft = null; }); return r;`);
   await step('history', `btn('History'); return $all('.game-card').length;`);
   await shot('18-history');

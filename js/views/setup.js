@@ -1,4 +1,4 @@
-/* Game setup: one screen with two tabs. Basics (buy-in, chip set, players) is all a Simple game needs;
+/* Game setup: one screen with two tabs. Basics (buy-in, the host's own chip set, players) is all a Simple game needs;
    More options lists every extra as a switch, all off until turned on. Detailed mode (the table, hands, seats) is one of them. */
 (function () {
   'use strict';
@@ -16,7 +16,8 @@
 
   const freshDraft = () => ({
     more: false, mode: 'simple', currency: 'CAD', symbol: '$',
-    handMoney: '20', handChips: '1000', buyinFixed: false, leaderCap: false, chipSet: 500, colours: DEFAULT_COLOURS(), colourUnit: 'chips',
+    handMoney: '20', handChips: '1000', buyinFixed: false, leaderCap: false,
+    chipSetId: U.uid(), chipSetName: '', colours: DEFAULT_COLOURS(), colourUnit: 'chips',
     fee: { on: false, pct: '5', minPot: '0' }, hostPlays: true, hostName: '',
     blinds: { on: false, minutes: '20', levels: DEFAULT_LEVELS() },
     pickSeats: false, seatsN: 6, seats: Array(6).fill(null), hostPid: null,
@@ -25,7 +26,7 @@
   /* New game: the last game's buy-in and chips, no players, and every extra switched off (their numbers are kept for when they're turned on) */
   Setup.newDraft = function () {
     const last = S.lastGame();
-    if (!last) return freshDraft();
+    if (!last) { const d = freshDraft(), set = S.lastChipSet(); if (set) useSet(d, set); return d; }
     const d = Setup.fromGame(last);
     d.seatsN = 6; d.seats = Array(6).fill(null);
     d.mode = 'simple'; d.buyinFixed = false; d.leaderCap = false; d.fee.on = false; d.blinds.on = false;
@@ -41,23 +42,21 @@
       mode: c.mode, currency: c.currency, symbol: c.symbol,
       handMoney: (c.handCents / 100).toString(), handChips: String(c.handChips),
       buyinFixed: !!(c.buyin && c.buyin.fixed), leaderCap: !!(c.buyin && c.buyin.leaderCap),
-      chipSet: presetOf(c), colours: U.clone(c.colours), seatsN: c.seats, seats: Array(c.seats).fill(null),
+      colours: U.clone(c.colours), seatsN: c.seats, seats: Array(c.seats).fill(null),
       fee: { on: c.fee.on, pct: (c.fee.bps / 100).toString(), minPot: String(c.fee.minPot || 0) },
       hostPlays: g.hostPlays !== false, hostPid: g.hostPlays !== false ? g.hostPid : null,
       hostName: g.hostPlays === false ? S.nameOf(g.hostPid) : '',
       blinds: { on: c.blinds.on, minutes: String(c.blinds.minutes), levels: U.clone(c.blinds.levels) },
     });
+    /* the saved chip set the game used, with any counts changed since; older games start a new set from their colours */
+    const set = S.chipSet(c.chipSetId);
+    if (set) useSet(d, set);
     g.players.filter(p => !p.hostOnly && p.seat != null && p.seat < c.seats).forEach(p => { d.seats[p.seat] = p.pid; });
     return d;
   };
 
-  /* which preset a saved game's colours came from (games don't store it), or 'custom' when they were edited */
-  function presetOf(c) {
-    const cols = c.colours.slice().sort((a, b) => a.chips - b.chips), base = DEFAULT_COLOURS();
-    return [500, 300].find(set => {
-      const p = Core.presetColours(c.handChips, set);
-      return cols.length === p.length && p.every((x, i) => cols[i].chips === x.chips && cols[i].have === x.have && cols[i].color === base[i].color);
-    }) || 'custom';
+  function useSet(dr, set) {
+    dr.chipSetId = set.id; dr.chipSetName = set.name; dr.colours = U.clone(set.colours);
   }
 
   const d = () => S.db.draft;
@@ -67,14 +66,9 @@
   const cv = () => Core.chipValue(handCents(), handChips());
   const sym = () => d().symbol || '$';
   const seated = () => d().seats.filter(Boolean);
+  /* every change to the chip set is saved straight away, so it is ready next game */
+  const keep = () => { const dr = d(); S.saveChipSet(dr.chipSetId, dr.chipSetName, dr.colours); };
 
-  /* a preset chip set follows the buy-in: recompute its colours whenever the chips per buy-in change */
-  function applyPreset() {
-    const dr = d(), k = handChips();
-    if (dr.chipSet === 'custom' || !k) return;
-    const base = DEFAULT_COLOURS();
-    dr.colours = Core.presetColours(k, dr.chipSet).map((p, i) => Object.assign(base[i], p));
-  }
   /* seat a player in the first free seat, growing the table when it is full; false when 10 are seated */
   function seatPlayer(dr, pid) {
     if (dr.seats.includes(pid)) return true;
@@ -95,6 +89,7 @@
 
   Setup.render = function () {
     const dr = d();
+    if (!dr.chipSetId) { dr.chipSetId = U.uid(); dr.chipSetName = ''; delete dr.chipSet; } /* drafts saved before chip sets were kept */
     const err = h('div', { class: 'form-error', 'aria-live': 'polite' });
     const n = extrasOn().length;
     return h('div', { class: 'screen wizard' },
@@ -148,18 +143,6 @@
   /* ---------- basics: the buy-in, the chip set and the players ---------- */
   function basicTab() {
     const dr = d();
-    const custom = dr.chipSet === 'custom';
-    const chipsBox = h('div', { class: 'mix-chips' });
-    const chipWarn = h('div', { class: 'warn small' });
-    const showChips = () => {
-      applyPreset(); save();
-      if (custom) return; /* the colour editor below shows its own checks */
-      U.clear(chipsBox);
-      dr.colours.slice().sort((a, b) => a.chips - b.chips).forEach(c => chipsBox.append(h('span', { class: 'mix-chip' },
-        h('span', { class: 'swatch', style: { background: c.color } }), U.fmtChips(c.chips) + (Number.isInteger(c.have) ? ' × ' + c.have : ''))));
-      chipWarn.textContent = handChips() && !Core.exactMix(handChips(), dr.colours.filter(c => c.chips > 0))
-        ? T('A buy-in of {n} chips can’t be made exactly with these colours.', { n: U.fmtChips(handChips()) }) : '';
-    };
 
     /* players: saved profiles as toggles, seated ones first; type a name to add someone new */
     const counts = {};
@@ -183,19 +166,42 @@
     nameIn.addEventListener('keydown', e => { if (e.key === 'Enter') addName(); });
     const extras = extrasOn();
 
-    showChips();
     return h('div', { class: 'stack' },
-      rateBlock(showChips),
+      rateBlock(),
       h('div', { class: 'label' }, T('Your chips')),
-      seg([[300, T('300-chip set')], [500, T('500-chip set')], ['custom', T('My own')]], dr.chipSet,
-        v => S.commit(() => { dr.chipSet = v; })),
-      custom ? colourEditor() : [chipsBox, chipWarn],
+      chipSetPicker(),
+      colourEditor(),
       h('div', { class: 'label' }, T('Players') + (seated().length ? ' · ' + seated().length : '')),
       h('div', { class: 'row gap' }, nameIn, h('button', { class: 'btn', onclick: addName }, T('Add'))),
       h('div', { class: 'pill-list' },
         seated().map(pid => h('button', { class: 'pill on', onclick: () => toggleP(pid) }, '✓ ' + S.nameOf(pid))),
         others.map(p => h('button', { class: 'pill', onclick: () => toggleP(p.id) }, p.name))),
       extras.length ? h('div', { class: 'muted small' }, T('Also on: {list}', { list: extras.join(' · ') })) : null);
+  }
+
+  /* the host's saved chip sets as pills, a new one, and the name of the one being edited */
+  function chipSetPicker() {
+    const dr = d();
+    const sets = S.db.chipSets;
+    const saved = S.chipSet(dr.chipSetId);
+    const newSet = () => S.commit(() => { dr.chipSetId = U.uid(); dr.chipSetName = ''; dr.colours = DEFAULT_COLOURS(); });
+    const remove = () => U.ask({ title: T('Delete {name}?', { name: saved.name || T('My chips') }), ok: T('Delete'), danger: true }).then(ok => {
+      if (!ok) return;
+      S.commit(() => {
+        S.deleteChipSet(saved.id);
+        const next = S.lastChipSet();
+        if (next) useSet(dr, next); else { dr.chipSetId = U.uid(); dr.chipSetName = ''; }
+      });
+    });
+    return [
+      sets.length ? h('div', { class: 'pill-list' },
+        sets.map(set => h('button', { class: 'pill' + (set.id === dr.chipSetId ? ' on' : ''), onclick: () => { Snd.tick(); S.commit(() => useSet(dr, set)); } }, set.name || T('My chips'))),
+        h('button', { class: 'pill', onclick: newSet }, '+ ' + T('New set'))) : null,
+      h('div', { class: 'row gap' },
+        h('input', { type: 'text', class: 'grow', value: dr.chipSetName, maxLength: 24, placeholder: T('Name this set, e.g. Home set'), 'aria-label': T('Chip set name'),
+          oninput: e => { dr.chipSetName = e.target.value; keep(); } }),
+        saved ? h('button', { class: 'btn ghost', onclick: remove }, T('Delete')) : null),
+      h('div', { class: 'muted small' }, T('Saved on this phone as you type, ready for your next game.'))];
   }
 
   /* with a host fee: who collects it, one of the players or someone who isn't playing */
@@ -254,7 +260,7 @@
       mode: dr.mode, currency: dr.currency, symbol: sym(),
       handCents: handCents(), handChips: handChips(), cv: cv(),
       buyin: { fixed: !!dr.buyinFixed, leaderCap: !!dr.leaderCap },
-      colours: U.clone(dr.colours).sort((a, b) => a.chips - b.chips), seats: dr.seatsN,
+      colours: U.clone(dr.colours).sort((a, b) => a.chips - b.chips), chipSetId: dr.chipSetId, seats: dr.seatsN,
       fee: { on: dr.fee.on, bps: dr.fee.on ? Core.parsePct(dr.fee.pct) : 0, minPot: dr.fee.on ? Core.parseInt0(dr.fee.minPot) : 0 },
       blinds: { on: dr.blinds.on, minutes: Core.parseInt0(dr.blinds.minutes) || 20, levels: U.clone(dr.blinds.levels) },
     };
@@ -274,6 +280,7 @@
       hostPid, hostPlays: dr.fee.on ? dr.hostPlays : true, rake: [], hands: [], final: null,
       blinds: { level: 0, running: false, endsAt: null, remaining: config.blinds.minutes * 60000 },
     };
+    keep();
     Snd.cash();
     S.commit(db => { db.current = game; db.draft = null; });
   }
@@ -381,7 +388,7 @@
             const cents = Core.parseMoney(e.target.value);
             c.chips = cents != null && cents % value === 0 ? cents / value : 0;
           }
-          save(); showDerived(); checkHand();
+          keep(); showDerived(); checkHand();
         },
       });
       showDerived();
@@ -390,22 +397,22 @@
       const have = h('input', {
         type: 'text', inputMode: 'numeric', class: 'w-sm', placeholder: '—', 'aria-label': T('How many the house has'),
         value: Number.isInteger(c.have) ? String(c.have) : '',
-        oninput: e => { c.have = Core.parseInt0(e.target.value); save(); showHave(); checkHand(); },
+        oninput: e => { c.have = Core.parseInt0(e.target.value); keep(); showHave(); checkHand(); },
       });
       showHave();
       return h('div', { class: 'colour-row' },
-        h('input', { type: 'color', value: c.color, 'aria-label': T('Colour'), oninput: e => { c.color = e.target.value; save(); } }),
-        h('input', { type: 'text', value: c.name, maxLength: 14, class: 'grow', 'aria-label': T('Name'), oninput: e => { c.name = e.target.value; save(); } }),
+        h('input', { type: 'color', value: c.color, 'aria-label': T('Colour'), oninput: e => { c.color = e.target.value; keep(); } }),
+        h('input', { type: 'text', value: c.name, maxLength: 14, class: 'grow', 'aria-label': T('Name'), oninput: e => { c.name = e.target.value; keep(); } }),
         h('div', { class: 'col' }, h('div', { class: 'row gap-s' }, dr.colourUnit === 'money' ? h('span', null, sym()) : null, val), derived),
         h('div', { class: 'col' }, have, haveNote),
-        h('button', { class: 'icon-btn', 'aria-label': T('Remove'), onclick: () => S.commit(() => { dr.colours = dr.colours.filter(x => x !== c); }) }, '✕'));
+        h('button', { class: 'icon-btn', 'aria-label': T('Remove'), onclick: () => S.commit(() => { dr.colours = dr.colours.filter(x => x !== c); keep(); }) }, '✕'));
     });
     checkHand();
     return [
       h('div', { class: 'muted small' }, T('Set each colour’s value and how many of it the house has.')),
       seg([['chips', T('Value in chips')], ['money', T('Value in money')]], dr.colourUnit, v => S.commit(() => { dr.colourUnit = v; })),
       h('div', { class: 'stack-s' }, rows),
-      h('button', { class: 'btn ghost', onclick: () => S.commit(() => { dr.colours.push({ id: U.uid(), name: T('Blue'), color: '#2f6fdb', chips: 5000, have: null }); }) }, '+ ' + T('Add colour')),
+      h('button', { class: 'btn ghost', onclick: () => S.commit(() => { dr.colours.push({ id: U.uid(), name: T('Blue'), color: '#2f6fdb', chips: 5000, have: null }); keep(); }) }, '+ ' + T('Add colour')),
       bankLine, warn];
   }
 

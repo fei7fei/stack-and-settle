@@ -48,17 +48,6 @@ test('grab mix for rake', () => {
   assert.equal(Core.grabMix(130, COLOURS).remainder, 5);
 });
 
-test('chip set presets suit the buy-in and can always make it exactly', () => {
-  assert.deepEqual(Core.presetColours(1000, 500).map(c => c.chips), [25, 100, 500, 1000]);
-  assert.deepEqual(Core.presetColours(1000, 300).map(c => c.have), [100, 100, 50, 50]);
-  assert.deepEqual(Core.presetColours(200, 500).map(c => c.chips), [5, 25, 100, 500]);
-  assert.deepEqual(Core.presetColours(5000, 500).map(c => c.chips), [100, 500, 1000, 5000]);
-  [1, 7, 100, 200, 1000, 1030, 2500, 5000, 100000].forEach(n => {
-    const cols = Core.presetColours(n, 500).map((c, i) => ({ id: 'c' + i, chips: c.chips }));
-    assert.ok(Core.exactMix(n, cols), 'buy-in of ' + n + ' can be made');
-  });
-});
-
 test('the bank follows buy-ins and cash-outs per colour', () => {
   const colours = [{ id: 'w', chips: 25, have: 100 }, { id: 'r', chips: 100, have: 50 }, { id: 'b', chips: 1000 }];
   const g = { config: { colours }, players: [

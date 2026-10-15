@@ -97,18 +97,6 @@
     return { mix, remainder: rem };
   };
 
-  /* ---------- chip set presets ---------- */
-  /* pieces per colour (smallest value first) in common boxed sets */
-  Core.CHIP_SETS = { 300: [100, 100, 50, 50], 500: [150, 150, 100, 100] };
-  /* four colour values that suit a buy-in of `buyin` chips (about 40 of the smallest per buy-in, and the
-     buy-in can always be made exactly), with the piece counts of `set` -> [{chips, have}] */
-  Core.presetColours = function (buyin, set) {
-    const ladders = [[1000, [1000, 5000, 25000, 100000]], [100, [100, 500, 1000, 5000]], [25, [25, 100, 500, 1000]], [5, [5, 25, 100, 500]], [1, [1, 5, 25, 100]]];
-    const pick = ladders.find(([b]) => b * 20 <= buyin && buyin % b === 0) || ladders[ladders.length - 1];
-    const counts = Core.CHIP_SETS[set] || Core.CHIP_SETS[500];
-    return pick[1].map((chips, i) => ({ chips, have: counts[i] }));
-  };
-
   /* ---------- the bank (chips the house still holds) ---------- */
   /* colour id -> chips of that colour left with the house; null when the colour wasn't counted at setup.
      Buy-ins take chips out, cash-outs put them back. The house pile (rake) is kept apart. */
