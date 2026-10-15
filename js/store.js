@@ -20,7 +20,16 @@
     try { db = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { db = null; }
     S.db = Object.assign(S.defaults(), db || {});
     S.db.settings = Object.assign(S.defaults().settings, S.db.settings || {});
+    migrate(S.db);
   };
+  /* older saves had one mode: 'detailed' was the table plus hand recording, 'simple' the list without it */
+  function migrate(db) {
+    db.games.concat(db.current || []).forEach(g => {
+      const c = g.config;
+      if (c.stats == null) { c.stats = c.mode === 'detailed'; c.view = c.stats ? 'table' : 'list'; delete c.mode; }
+    });
+    if (db.draft && db.draft.stats == null) { db.draft.stats = db.draft.mode === 'detailed'; delete db.draft.mode; }
+  }
   S.save = function () {
     try { localStorage.setItem(KEY, JSON.stringify(S.db)); }
     catch (e) { U.toast(T('Could not save. Is storage full?'), 'bad'); }
@@ -82,6 +91,7 @@
     const db = Object.assign(S.defaults(), obj);
     delete db.exportedAt; delete db.app;
     db.settings = Object.assign(S.defaults().settings, obj.settings || {});
+    migrate(db);
     S.db = db;
     S.save();
   };

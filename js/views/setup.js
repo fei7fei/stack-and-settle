@@ -1,5 +1,5 @@
-/* Game setup: one screen with two tabs. Basics (buy-in, the host's own chip set, players) is all a Simple game needs;
-   More options lists every extra as a switch, all off until turned on. Detailed mode (the table, hands, seats) is one of them. */
+/* Game setup: one screen with two tabs. Basics (buy-in, the host's own chip set, players) is all a simple game needs;
+   More options lists every extra as a switch, all off until turned on. Record stats (who wins each hand) is one of them. */
 (function () {
   'use strict';
   const Setup = window.Setup = {};
@@ -15,7 +15,7 @@
   const SIZES = [6, 8, 9, 10];
 
   const freshDraft = () => ({
-    more: false, mode: 'simple', currency: 'CAD', symbol: '$',
+    more: false, stats: false, currency: 'CAD', symbol: '$',
     handMoney: '20', handChips: '1000', buyinFixed: false, leaderCap: false,
     chipSetId: U.uid(), chipSetName: '', colours: DEFAULT_COLOURS(), editSet: false,
     fee: { on: false, pct: '5', minPot: '0' }, hostPlays: true, hostName: '',
@@ -29,7 +29,7 @@
     if (!last) { const d = freshDraft(), set = S.lastChipSet(); if (set) useSet(d, set); return d; }
     const d = Setup.fromGame(last);
     d.seatsN = 6; d.seats = Array(6).fill(null);
-    d.mode = 'simple'; d.buyinFixed = false; d.leaderCap = false; d.fee.on = false; d.blinds.on = false;
+    d.stats = false; d.buyinFixed = false; d.leaderCap = false; d.fee.on = false; d.blinds.on = false;
     d.hostPlays = true; d.hostPid = null;
     return d;
   };
@@ -39,7 +39,7 @@
     const c = g.config;
     const d = freshDraft();
     Object.assign(d, {
-      mode: c.mode, currency: c.currency, symbol: c.symbol,
+      stats: !!c.stats, currency: c.currency, symbol: c.symbol,
       handMoney: (c.handCents / 100).toString(), handChips: String(c.handChips),
       buyinFixed: !!(c.buyin && c.buyin.fixed), leaderCap: !!(c.buyin && c.buyin.leaderCap),
       colours: U.clone(c.colours), seatsN: c.seats, seats: Array(c.seats).fill(null),
@@ -113,12 +113,12 @@
   function extrasOn() {
     const dr = d();
     return [
-      dr.mode === 'detailed' ? T('Detailed mode') : null,
+      dr.stats ? T('Record stats') : null,
       dr.buyinFixed ? T('Fixed buy-ins') : null,
       dr.leaderCap ? T('Chip-leader rule') : null,
       dr.fee.on ? T('Host fee {p}%', { p: dr.fee.pct }) : null,
       dr.blinds.on ? T('Blinds timer') : null,
-      dr.pickSeats && dr.mode === 'detailed' ? T('Choose seats') : null,
+      dr.pickSeats ? T('Choose seats') : null,
     ].filter(Boolean);
   }
 
@@ -134,7 +134,7 @@
       showError(err, msg);
       return;
     }
-    if (!dr.pickSeats || dr.mode !== 'detailed') {
+    if (!dr.pickSeats) {
       /* seat everyone side by side on the smallest table that fits */
       const people = seated();
       dr.seatsN = SIZES.find(s => s >= people.length);
@@ -309,7 +309,7 @@
     const dr = d();
     const now = Date.now();
     const config = {
-      mode: dr.mode, currency: dr.currency, symbol: sym(),
+      stats: !!dr.stats, view: dr.stats || dr.pickSeats ? 'table' : 'list', currency: dr.currency, symbol: sym(),
       handCents: handCents(), handChips: handChips(), cv: cv(),
       buyin: { fixed: !!dr.buyinFixed, leaderCap: !!dr.leaderCap },
       colours: U.clone(dr.colours).sort((a, b) => a.chips - b.chips), chipSetId: dr.chipSetId, seats: dr.seatsN,
@@ -387,8 +387,8 @@
     const hc = handCents(), hk = handChips();
     const rate = hc != null && hk ? { chips: U.fmtChips(hk), money: Core.fmt(hc, sym()) } : null;
     return h('div', { class: 'stack' },
-      option(T('Detailed mode'), T('Shows the poker table and records every hand: who won, the pot and a tag. Adds hand stats. When off, the game is a list of players and their buy-ins.'),
-        dr.mode === 'detailed', v => { dr.mode = v ? 'detailed' : 'simple'; if (!v) dr.pickSeats = false; }),
+      option(T('Record stats'), T('Records who wins each hand, the pot and a tag, and adds hand stats to the results.'),
+        dr.stats, v => { dr.stats = v; }),
       option(T('Fixed buy-ins only'), rate ? T('Every buy-in is exactly {chips} chips ({money}). No other amounts.', rate) : null,
         dr.buyinFixed, v => { dr.buyinFixed = v; }),
       option(T('No buying in for more than the chip leader has'),
@@ -398,8 +398,8 @@
         dr.fee.on, v => { dr.fee.on = v; }, feeEditor),
       option(T('Blinds timer'), T('Raises the blinds on a timer, with a bell at each new level.'),
         dr.blinds.on, v => { dr.blinds.on = v; }, blindsEditor),
-      dr.mode === 'detailed' ? option(T('Choose seats'), T('When off, players sit side by side in the order you add them.'),
-        dr.pickSeats, v => { dr.pickSeats = v; }, seatsEditor) : null);
+      option(T('Choose seats'), T('When off, players sit side by side in the order you add them.'),
+        dr.pickSeats, v => { dr.pickSeats = v; }, seatsEditor));
   }
 
   function option(title, desc, on, set, body) {
@@ -538,28 +538,27 @@
     const tableHolder = h('div');
     const draw = () => {
       U.clear(tableHolder);
+      /* players are added on Basics; here a tap only moves someone to another seat */
+      const move = i => {
+        const pid = dr.seats[i];
+        if (!pid) return;
+        U.sheet(api => h('div', { class: 'stack' }, h('h3', null, T('Move {name} to…', { name: S.nameOf(pid) })),
+          h('div', { class: 'seat-grid' }, dr.seats.map((o, k) => h('button', { class: 'pill' + (k === i ? ' on' : ''), disabled: k === i, onclick: () => {
+            S.commit(() => { dr.seats[i] = o; dr.seats[k] = pid; });
+            Snd.card(); api.close();
+          } }, T('Seat {n}', { n: k + 1 }) + (o && k !== i ? ' ⇄ ' + S.nameOf(o) : ''))))), { cls: 'small' });
+      };
+      const host = dr.fee.on && dr.hostPlays && dr.hostPid ? dr.seats.indexOf(dr.hostPid) : -1;
       tableHolder.append(TV.table({
-        n: dr.seatsN,
-        dealer: dr.fee.on && dr.hostPlays && dr.hostPid ? dr.seats.indexOf(dr.hostPid) : null,
-        centre: h('div', { class: 'centre-info' },
-          h('div', { class: 'logo-mini' }, '♠'),
+        dealer: host >= 0 ? host : null,
+        centre: h('div', { class: 'felt-print' },
           dr.fee.on && !dr.hostPlays ? h('div', { class: 'house-spot' }, '🏠 ' + (dr.hostName || T('House'))) : null,
-          h('div', { class: 'muted small' }, T('{n} seated', { n: seated().length }))),
-        seat: i => {
-          const pid = dr.seats[i];
-          if (!pid) return h('div', { class: 'seat empty' }, h('small', null, T('Seat {n}', { n: i + 1 })));
-          return h('div', { class: 'seat filled' }, h('div', { class: 'avatar' }, initials(S.nameOf(pid))), h('div', { class: 'seat-name' }, S.nameOf(pid)));
-        },
-        /* players are added on Basics; here a tap only moves someone to another seat */
-        onSeat: i => {
-          const pid = dr.seats[i];
-          if (!pid) return;
-          U.sheet(api => h('div', { class: 'stack' }, h('h3', null, T('Move {name} to…', { name: S.nameOf(pid) })),
-            h('div', { class: 'seat-grid' }, dr.seats.map((o, k) => h('button', { class: 'pill' + (k === i ? ' on' : ''), disabled: k === i, onclick: () => {
-              S.commit(() => { dr.seats[i] = o; dr.seats[k] = pid; });
-              Snd.card(); api.close();
-            } }, T('Seat {n}', { n: k + 1 }) + (o && k !== i ? ' ⇄ ' + S.nameOf(o) : ''))))), { cls: 'small' });
-        },
+          h('div', { class: 'felt-stat' }, h('strong', null, T('{n} seated', { n: seated().length })))),
+        slots: dr.seats.map((pid, i) => ({
+          id: i, label: T('Seat {n}', { n: i + 1 }), onclick: () => move(i),
+          node: pid ? h('div', { class: 'seat filled' }, h('div', { class: 'avatar' }, initials(S.nameOf(pid))), h('div', { class: 'seat-name' }, S.nameOf(pid)))
+            : h('div', { class: 'seat empty' }, h('small', null, T('Seat {n}', { n: i + 1 }))),
+        })),
       }));
     };
     draw();

@@ -20,7 +20,7 @@
     'Remove': '移除', 'Delete': '删除', 'Edit': '编辑', 'Undo': '撤销', 'Discard': '放弃',
 
     // table
-    'House': '庄家', 'chips': '筹码', 'Join': '加入', 'counting…': '清点中…', 'out': '已离场',
+    'House': '庄家', 'Dealer': '荷官', 'chips': '筹码', 'Join': '加入', 'counting…': '清点中…', 'out': '已离场',
     'Late joiner': '中途加入', 'Seat {n}': '{n} 号位', 'Host': '主持人',
     'New player name': '新玩家名字', '{name} is already seated': '{name} 已经入座', 'Add player': '添加玩家', 'Saved players': '已保存的玩家',
 
@@ -125,13 +125,12 @@
 
     // setup
 
-    'Simple': '简单', 'Detailed': '详细',
     'A table seats 10 at most.': '一桌最多 10 人。', 'Host fee {p}%': '抽水 {p}%', 'Fixed buy-ins': '固定买入',
     'Chip-leader rule': '筹码上限规则', 'Your chips': '你的筹码', 'My chips': '我的筹码', 'New set': '新套装', 'Edit set': '编辑套装', 'Done': '完成', 'Value': '面值',
     'Name this set, e.g. Home set': '给这套筹码起个名字，例如：家里那套', 'Chip set name': '筹码套装名称',
     'Saved on this phone as you type, ready for your next game.': '输入时自动保存在本机，下次开局可直接使用。',
     'Basics': '基本', 'More options': '更多选项', 'Also on: {list}': '已开启：{list}',
-    'Detailed mode': '详细模式', 'Shows the poker table and records every hand: who won, the pot and a tag. Adds hand stats. When off, the game is a list of players and their buy-ins.': '显示牌桌并记录每一手：赢家、底池和标签，增加逐手统计。关闭时，牌局只是玩家及其买入的列表。',
+    'Record stats': '记录统计', 'Records who wins each hand, the pot and a tag, and adds hand stats to the results.': '记录每一手的赢家、底池和标签，并在结果中加入逐手统计。', 'List': '列表', 'Table': '牌桌',
     'Fixed buy-ins only': '只能固定买入',
     'The host takes a percentage of each pot.': '主持人从每个底池中抽取一定比例。',
     'Raises the blinds on a timer, with a bell at each new level.': '按时升盲，每升一级响铃提醒。',

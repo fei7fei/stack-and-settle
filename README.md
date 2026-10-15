@@ -15,20 +15,21 @@ On the phone, use **Add to Home Screen** to get an app icon.
 
 Everything else sits on the **More options** tab, all on one page, and nothing there repeats the basics. Each extra is a switch, and every switch starts off for a new game:
 
-- **Detailed mode.** Puts the poker table on screen and records each hand: the winner, the pot and how it ended (showdown, everyone folded, or all-in).
+- **Record stats.** Records each hand: the winner, the pot and how it ended (showdown, everyone folded, or all-in), and adds hand stats to the results.
 - **Fixed buy-ins only.** Players can only buy in for the standard amount.
 - **No buying in for more than the chip leader has.**
 - **Host fee.** A percentage rake with a minimum pot, and who the host is: one of the players, or someone who only hosts.
 - **Blinds timer** with your own levels.
-- **Choose seats** (Detailed mode). Pick a 6, 8, 9 or 10-seat table, shuffle the seats, or tap a player to move them. When it's off, players sit in the order you added them.
+- **Choose seats.** Pick a 6, 8, 9 or 10-seat table, shuffle the seats, or tap a player to move them. When it's off, players sit in the order you added them.
 
 **Quick start** reuses the setup, extras and players from your last game.
 
 ### During the game
 Everything during the game is in chips. Money only shows up in setup and in the results at the end.
 
-- **Simple mode is a list** of the players with their buy-ins and chips. Each row has a **Buy in** button that opens that player's buy-in options, and **Add player** lets late arrivals join.
-- **Detailed mode shows an oval table** with every player in their seat. The dealer button marks a host who plays, and a house spot shows for a host who only hosts. Tap an empty seat to add a late arrival.
+- **Two views, switch any time.** The **List / Table** switch at the top flips between them during play and while counting. It only changes how the game looks.
+- **List** shows the players with their buy-ins and chips. Each row has a **Buy in** button that opens that player's buy-in options, and **Add player** lets late arrivals join.
+- **Table** shows a landscape poker table with a cartoon dealer at the top and every player spaced evenly around it, plus a **+ Join** seat for late arrivals. The time played, the chip totals and the blinds clock are printed on the felt. A "D" marks a host who plays.
 - **Tap a player, tap an amount.** The buy-in is recorded straight away, and a message says which chips to hand over, with an **Undo** button. *Other* lets you type any number of chips (fixed mode only has whole buy-ins). Each buy-in in the log shows its colours, and ✎ changes them. Cash out and bust sit below; rename, payment handles, move seat, make host and remove are under **More**.
 - **Chip helper.** Every buy-in opens a full-screen page showing which colours to hand over, with the maths for each colour ("2 × 100 = 200") and the running sum. Change any count with −/+ or by typing, and the colours you haven't touched rebalance so the total stays exact. It only confirms once the chips add up to the exact amount. The suggestion spreads the colours evenly but never takes so much of one colour that the bank can't serve later buy-ins.
 - **Bank.** Shows how many chips of each colour the house still holds. Buy-ins take chips out and cash-outs put them back.
@@ -36,14 +37,14 @@ Everything during the game is in chips. Money only shows up in setup and in the 
 - **Rake tracking.** Fees are taken in whole chips and only when the pot is big enough. The app shows which chips to pull from the pot, and the house pile has its own undo.
 - **Dashboard.** Shows chips on the table, chips bought, time played, the bank, the house pile, the hand count and who has rebought the most.
 - **Blinds timer.** Rings a bell and shows a message when the level goes up.
-- **Hand log** (Detailed mode). Every hand is listed, and any of them can be undone.
+- **Hand log** (Record stats). Every hand is listed, and any of them can be undone.
 
 ### End of the night
 - **Count stacks in any order.** You can reopen a player if you counted wrong. Results stay locked until everyone is counted.
 - **Chip check.** If the counted chips don't match the chips handed out, the app warns you. You can recount, or split the difference fairly in whole chips.
 - **Fewest payments.** Works out the smallest possible number of payments to settle everyone, and nobody both pays and receives. Payments are grouped by payer, and you can tick each one off as it's paid.
 - **Share.** Copy a summary to the group chat, including each player's e-Transfer or WeChat handle. Or save a recap image of the night.
-- **Game stats.** Shows how long you played, total rebuys, the biggest win and the biggest loss. In Detailed mode it adds hand stats.
+- **Game stats.** Shows how long you played, total rebuys, the biggest win and the biggest loss. With Record stats on it adds hand stats.
 
 ### History and players
 - **Every finished game is saved.** You can open, edit or delete any past game.

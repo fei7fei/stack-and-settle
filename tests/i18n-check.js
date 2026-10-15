@@ -9,7 +9,6 @@ for (const f of files) { const src = fs.readFileSync(f, 'utf8'); let m; while ((
 // strings passed indirectly: TAGS, badge labels, option titles
 const extra = ['Showdown', 'Everyone folded', 'All-in',
   'Hot streak', 'Cold streak', 'All-time leader', 'Biggest single win', 'Generous donor', 'Regular', 'Best ROI', 'Rebuy king',
-  'Simple', 'Detailed',
   'Hot streak (3+ wins in a row)', 'Cold streak (3+ losses in a row)', 'Generous donor (biggest single loss)', 'Regular (most games)', 'Best ROI (3+ games)', 'Rebuy king (most buy-ins per game)'];
 extra.forEach(s => found.add(s));
 global.window = global;

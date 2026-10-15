@@ -55,7 +55,7 @@ window.btn = (text, scope) => {
 window.sheet = () => { const s = $all('.sheet-back'); return s[s.length - 1].querySelector('.sheet'); };
 window.type = (el, v) => { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); };
 window.wait = ms => new Promise(r => setTimeout(r, ms));
-window.seat = i => $all('.seat-slot')[i].click();
+window.seat = i => $q('.seat-slot[data-seat="' + i + '"]').click();
 window.row = name => $all('.player-list tbody tr').find(tr => tr.textContent.includes(name)).click();
 window.sw = (label, on) => { const r = $all('.toggle-row').find(x => x.textContent.includes(label)); if (!r) throw new Error('no switch: ' + label);
   const s = r.querySelector('.switch'); s.checked = on; s.dispatchEvent(new Event('change')); return true; };
@@ -124,7 +124,7 @@ window.sw = (label, on) => { const r = $all('.toggle-row').find(x => x.textConte
   await step('quick add Dan', `type($q('[data-quick-name]'), 'Dan'); btn('Add'); await wait(100); return S.db.draft.seats.filter(Boolean).length;`);
   await step('more options: everything off', `btn('More options'); await wait(100); return [S.db.draft.more, $all('.wizard .toggle-row').map(r => r.textContent + ':' + r.querySelector('.switch').checked)];`);
   await shot('04b-more-options');
-  await step('detailed + chip leader rule on', `sw('Detailed mode', true); await wait(50); sw('No buying in', true); await wait(50); return [S.db.draft.mode, S.db.draft.leaderCap];`);
+  await step('record stats + chip leader rule on', `sw('Record stats', true); await wait(50); sw('No buying in', true); await wait(50); return [S.db.draft.stats, S.db.draft.leaderCap];`);
   await step('enable fee', `sw('Host fee', true); await wait(50);`);
   await step('set fee', `const ins = $all('.opt-body input[type=text]'); type(ins[0], '5'); type(ins[1], '100'); return S.db.draft.fee;`);
   await step('enable blinds', `sw('Blinds timer', true); await wait(50);`);
@@ -136,7 +136,7 @@ window.sw = (label, on) => { const r = $all('.toggle-row').find(x => x.textConte
   await step('shuffle', `btn('Shuffle seats');`, 900);
   await shot('07-seats');
   await step('start game', `const seats = S.db.draft.seats.slice(); btn('Start game'); await wait(50); const g = S.db.current;
-    return [g.players.length, g.config.mode, g.players.every(p => seats[p.seat] === p.pid)];`, 700);
+    return [g.players.length, g.config.stats, g.config.view, g.players.every(p => seats[p.seat] === p.pid)];`, 700);
   await shot('08-table');
 
   await step('everyone buys in', `btn('Everyone buys in'); await wait(350); const mix = sheet().querySelector('.big-mix').textContent; btn('Confirm', sheet()); return [Core.issuedChips(S.db.current), mix];`);
@@ -160,7 +160,7 @@ window.sw = (label, on) => { const r = $all('.toggle-row').find(x => x.textConte
     type(sheet().querySelector('[data-amount]'), '505'); btn('Buy in', sheet()); await wait(350); const w = sheet().querySelector('.warn'); return w && w.textContent;`);
   await shot('09b-helper-warn');
   await step('helper: free mode', `btn('Build by colours (free mode)', sheet()); await wait(100); const plus = sheet().querySelectorAll('.round-btn'); plus[plus.length - 1].click(); await wait(50); btn('Confirm', sheet()); return Core.paidChips(S.db.current.players.find(p => p.name === 'Ben'));`);
-  await step('change colours of a buy-in', `const b = sheet().querySelector('[aria-label="Change colours"]'); b.click(); await wait(350); const t = sheet().querySelector('.helper-total').textContent; btn('Confirm', sheet()); await wait(100); return t;`);
+  await step('change colours of a buy-in', `await wait(400); const b = sheet().querySelector('[aria-label="Change colours"]'); b.click(); await wait(350); const t = sheet().querySelector('.helper-total').textContent; btn('Confirm', sheet()); await wait(100); return t;`);
   await step('close panel 2', `$all('.sheet-back').forEach(b => b.click());`);
   await step('rake below minimum', `btn('Rake'); await wait(350); type(sheet().querySelector('input'), '80'); return sheet().querySelector('.rake-out').textContent;`);
   await step('rake 5% of 1990', `type(sheet().querySelector('input'), '1990'); const t = sheet().querySelector('.rake-out').textContent; btn('Add to house pile', sheet()); return t;`);
@@ -168,7 +168,7 @@ window.sw = (label, on) => { const r = $all('.toggle-row').find(x => x.textConte
   await step('bank sheet', `btn('Bank'); await wait(350); const t = sheet().textContent; return t.slice(0, 160);`);
   await shot('10a-bank');
   await step('close bank', `$all('.sheet-back').forEach(b => b.click());`);
-  await step('blinds start', `$q('.blinds .icon-btn.strong').click(); await wait(1200); return $q('[data-blinds]').textContent;`, 300);
+  await step('blinds start', `$q('.felt-blinds-now').click(); await wait(1200); return $q('[data-blinds]').textContent;`, 300);
   await shot('10-dashboard');
   await step('dan cashes out early 800', `const p = S.db.current.players.find(p => p.name === 'Dan'); seat(p.seat); await wait(350); btn('Cash out', sheet()); await wait(350); type(sheet().querySelector('.count-input.wide'), '800'); btn('Cash out', sheet()); return S.db.current.players.find(p => p.name === 'Dan').cashedOut.chips;`);
   await step('close panel 3', `$all('.sheet-back').forEach(b => b.click());`);
@@ -200,7 +200,7 @@ window.sw = (label, on) => { const r = $all('.toggle-row').find(x => x.textConte
   await shot('17-profile');
   await step('close profile', `$all('.sheet-back').forEach(b => b.click());`);
   await step('quick start', `btn('Play'); await wait(100); btn('Quick start from last game'); return [S.db.draft.more, S.db.draft.seats.filter(Boolean).length, $q('.wizard h2').textContent];`);
-  await step('rules in more options', `btn('More options'); await wait(100); sw('Detailed mode', false); await wait(100); sw('Fixed buy-ins only', true); await wait(100); sw('No buying in', false); await wait(50);
+  await step('rules in more options', `btn('More options'); await wait(100); sw('Record stats', false); await wait(100); sw('Fixed buy-ins only', true); await wait(100); sw('No buying in', false); await wait(50);
     return [S.db.draft.buyinFixed, S.db.draft.leaderCap];`);
   await step('back to the basics', `btn('Basics'); await wait(100); return [S.db.draft.more, $all('.pill.on').length, $q('.wizard .muted.small:last-of-type') && $all('.wizard .muted.small').pop().textContent];`);
   await shot('17a-quick-again');
@@ -212,6 +212,9 @@ window.sw = (label, on) => { const r = $all('.toggle-row').find(x => x.textConte
   await step('buy-ins game 2', `btn('Everyone buys in'); await wait(350); btn('Confirm', sheet()); return Core.issuedChips(S.db.current);`);
   await step('simple mode is a list, no table', `return [!!$q('.table-wrap'), $all('.player-list tbody tr').length, $all('.tile-value').map(t => t.textContent).join(' | ')];`);
   await shot('17c-simple-list');
+  await step('switch to the table view', `btn('Table'); await wait(150); return [S.db.current.config.view, !!$q('.table-wrap'), !!$q('.player-list'), $all('button').some(b => b.textContent.includes('Record hand'))];`);
+  await shot('17d-simple-table');
+  await step('and back to the list', `btn('List'); await wait(150); return [S.db.current.config.view, !!$q('.table-wrap')];`);
   await step('buy-in button on the list row', `const tr = $all('.player-list tbody tr').find(tr => tr.textContent.includes('Cara')); tr.querySelector('button').click(); await wait(350);
     btn('+1 buy-in', sheet()); await wait(350); btn('Confirm', sheet()); await wait(150); $all('.sheet-back').forEach(b => b.click()); await wait(300);
     const after = Core.paidChips(S.db.current.players.find(p => p.name === 'Cara')); const toast = $all('.toast').pop().textContent; $all('.toast-action').pop().click(); await wait(100);
@@ -227,7 +230,7 @@ window.sw = (label, on) => { const r = $all('.toggle-row').find(x => x.textConte
     btn('Calculate'); await wait(400); btn('Distribute', sheet()); await wait(400);
     const g = S.db.games[S.db.games.length - 1]; return { diff: g.final.diff, adj: g.final.rows.map(r => [r.name, r.adj, r.net]), sum: g.final.rows.reduce((s, r) => s + r.net, 0) };`, 1500);
   await step('new game starts with every extra off', `btn('Play'); await wait(100); btn('New game'); await wait(100); const d = S.db.draft;
-    const r = [d.mode, d.buyinFixed, d.leaderCap, d.chipSetName, d.colours.length, d.fee.on, d.blinds.on, d.pickSeats, $q('.seg-btn.on + .seg-btn').textContent];
+    const r = [d.stats, d.buyinFixed, d.leaderCap, d.chipSetName, d.colours.length, d.fee.on, d.blinds.on, d.pickSeats, $q('.seg-btn.on + .seg-btn').textContent];
     S.commit(db => { db.draft = null; }); return r;`);
   await step('history', `btn('History'); return $all('.game-card').length;`);
   await shot('18-history');

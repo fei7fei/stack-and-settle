@@ -162,7 +162,7 @@
       item(T('Rake taken'), game.config.fee.on ? Core.fmt(s.rake, sym) : '—'),
     ];
     const out = [h('div', { class: 'stat-grid' }, blocks)];
-    if (game.config.mode === 'detailed') {
+    if (game.config.stats) {
       if (!s.hands) out.push(h('div', { class: 'muted' }, T('No hands were recorded.')));
       else {
         out.push(h('div', { class: 'card-title' }, T('Hands')));

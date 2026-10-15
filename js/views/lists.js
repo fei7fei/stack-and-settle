@@ -29,7 +29,7 @@
     return h('button', { class: 'card game-card tap', onclick: () => { App.view = { name: 'results', id: g.id }; App.tab = 'history'; App.render(); } },
       h('div', { class: 'row between' },
         h('strong', null, U.fmtDate(g.endedAt || g.startedAt)),
-        h('span', { class: 'muted small' }, g.config.currency + ' · ' + T(g.config.mode === 'detailed' ? 'Detailed' : 'Simple'))),
+        h('span', { class: 'muted small' }, g.config.currency + (g.config.stats ? ' · ' + T('Stats') : ''))),
       h('div', { class: 'muted small' }, T('{n} players', { n: rows.length }) + ' · ' + Core.fmt(Core.paidCents(g), sym) + ' ' + T('in') + ' · ' + U.fmtDur((g.endedAt || g.startedAt) - g.startedAt)),
       top && top.net > 0 ? h('div', { class: 'small' }, '🥇 ' + top.name + ' ', h('span', { class: 'win' }, Core.fmt(top.net, sym, true))) : null);
   }
