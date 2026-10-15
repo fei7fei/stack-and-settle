@@ -100,10 +100,13 @@ window.sw = (label, on) => { const r = $all('.toggle-row').find(x => x.textConte
   await step('a changed count is saved', `type($all('[aria-label="How many the house has"]')[0], '200'); await wait(50); const a = S.db.chipSets[0].colours[0].have;
     type($all('[aria-label="How many the house has"]')[0], '150'); await wait(50); return [a, S.db.chipSets[0].colours[0].have];`);
   await step('chip steppers: tap is 1, hold speeds up', `const b = () => $all('.colour-row')[0].querySelectorAll('.round-btn'); const col = () => S.db.chipSets[0].colours[0];
-    b()[1].click(); b()[3].click(); await wait(50); const tapped = [col().chips, col().have];
+    b()[1].click(); b()[5].click(); await wait(50); const tapped = [col().chips, col().have];
     b()[1].dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); await wait(1500); b()[1].dispatchEvent(new PointerEvent('pointerup', { bubbles: true })); await wait(50);
     const held = col().chips; S.commit(() => { const c = S.db.draft.colours[0]; c.chips = 25; c.have = 150; }); await wait(50);
-    return [tapped, held > 60 && held % 10 === 0, $all('.colour-row')[0].querySelector('.step-line input').value];`);
+    return [tapped, held > 60 && held % 10 === 0, $all('.colour-row')[0].querySelector('.step-cell input').value];`);
+  await step('money stepper moves the chip value', `const r = $all('.colour-row')[0], b = r.querySelectorAll('.round-btn'), ins = r.querySelectorAll('input:not([type=color])');
+    b[3].click(); await wait(50); const up = [S.db.draft.colours[0].chips, ins[0].value, ins[1].value];
+    b[2].click(); await wait(50); return [up, S.db.draft.colours[0].chips, ins[1].value];`);
   await shot('03-quick-setup');
   await step('chip editor has labelled columns', `$q('.colour-head').scrollIntoView({ block: 'start' }); window.scrollBy(0, -90); await wait(100); return [...$q('.colour-head').children].map(e => e.textContent);`);
   await shot('03a-chip-editor');
@@ -201,6 +204,10 @@ window.sw = (label, on) => { const r = $all('.toggle-row').find(x => x.textConte
     return [S.db.draft.buyinFixed, S.db.draft.leaderCap];`);
   await step('back to the basics', `btn('Basics'); await wait(100); return [S.db.draft.more, $all('.pill.on').length, $q('.wizard .muted.small:last-of-type') && $all('.wizard .muted.small').pop().textContent];`);
   await shot('17a-quick-again');
+  await step('saved set shows as a summary', `return [$all('.colour-row').length, $all('.set-sum-row:not(.set-sum-head)').length, !!$q('[aria-label="Chip set name"]')];`);
+  await step('edit set opens the editor, done folds it', `btn('Edit set'); await wait(100); const open = $all('.colour-row').length; btn('Done'); await wait(100); return [open, $all('.colour-row').length, S.db.draft.editSet];`);
+  await step('new set shows the editor, picking a saved set hides it', `btn('+ New set'); await wait(100); const a = [$all('.colour-row').length, !!$q('[aria-label="Chip set name"]')];
+    btn('Home set'); await wait(100); return [a, $all('.colour-row').length, S.db.draft.chipSetName, S.db.chipSets.length];`);
   await step('start quick game', `btn('Start game'); return [S.db.current.phase, S.db.current.config.buyin, S.db.current.config.seats];`);
   await step('buy-ins game 2', `btn('Everyone buys in'); await wait(350); btn('Confirm', sheet()); return Core.issuedChips(S.db.current);`);
   await step('simple mode is a list, no table', `return [!!$q('.table-wrap'), $all('.player-list tbody tr').length, $all('.tile-value').map(t => t.textContent).join(' | ')];`);

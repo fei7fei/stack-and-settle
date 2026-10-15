@@ -127,7 +127,7 @@
 
     'Simple': '简单', 'Detailed': '详细',
     'A table seats 10 at most.': '一桌最多 10 人。', 'Host fee {p}%': '抽水 {p}%', 'Fixed buy-ins': '固定买入',
-    'Chip-leader rule': '筹码上限规则', 'Your chips': '你的筹码', 'My chips': '我的筹码', 'New set': '新套装',
+    'Chip-leader rule': '筹码上限规则', 'Your chips': '你的筹码', 'My chips': '我的筹码', 'New set': '新套装', 'Edit set': '编辑套装', 'Done': '完成', 'Value': '面值',
     'Name this set, e.g. Home set': '给这套筹码起个名字，例如：家里那套', 'Chip set name': '筹码套装名称',
     'Saved on this phone as you type, ready for your next game.': '输入时自动保存在本机，下次开局可直接使用。',
     'Basics': '基本', 'More options': '更多选项', 'Also on: {list}': '已开启：{list}',

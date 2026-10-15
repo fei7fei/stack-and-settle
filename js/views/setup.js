@@ -17,7 +17,7 @@
   const freshDraft = () => ({
     more: false, mode: 'simple', currency: 'CAD', symbol: '$',
     handMoney: '20', handChips: '1000', buyinFixed: false, leaderCap: false,
-    chipSetId: U.uid(), chipSetName: '', colours: DEFAULT_COLOURS(),
+    chipSetId: U.uid(), chipSetName: '', colours: DEFAULT_COLOURS(), editSet: false,
     fee: { on: false, pct: '5', minPot: '0' }, hostPlays: true, hostName: '',
     blinds: { on: false, minutes: '20', levels: DEFAULT_LEVELS() },
     pickSeats: false, seatsN: 6, seats: Array(6).fill(null), hostPid: null,
@@ -56,7 +56,7 @@
   };
 
   function useSet(dr, set) {
-    dr.chipSetId = set.id; dr.chipSetName = set.name; dr.colours = U.clone(set.colours);
+    dr.chipSetId = set.id; dr.chipSetName = set.name; dr.colours = U.clone(set.colours); dr.editSet = false;
   }
 
   const d = () => S.db.draft;
@@ -66,8 +66,10 @@
   const cv = () => Core.chipValue(handCents(), handChips());
   const sym = () => d().symbol || '$';
   const seated = () => d().seats.filter(Boolean);
-  /* every change to the chip set is saved straight away, so it is ready next game */
-  const keep = () => { const dr = d(); S.saveChipSet(dr.chipSetId, dr.chipSetName, dr.colours); };
+  /* every change to the chip set is saved straight away, so it is ready next game; the editor stays open while it's used */
+  const keep = () => { const dr = d(); dr.editSet = true; S.saveChipSet(dr.chipSetId, dr.chipSetName, dr.colours); };
+  /* a saved set shows as a summary until the host asks to edit it; a new set always shows the editor */
+  const editing = () => d().editSet || !S.chipSet(d().chipSetId);
 
   /* seat a player in the first free seat, growing the table when it is full; false when 10 are seated */
   function seatPlayer(dr, pid) {
@@ -127,7 +129,8 @@
     const msg = basic || hostError() || validate('extras');
     if (msg) {
       const more = !basic;
-      if (dr.more !== more) { S.commit(() => { dr.more = more; }); err = document.querySelector('.form-error') || err; }
+      const openSet = !validate('money') && !!validate('colours') && !editing();
+      if (dr.more !== more || openSet) { S.commit(() => { dr.more = more; if (openSet) dr.editSet = true; }); err = document.querySelector('.form-error') || err; }
       showError(err, msg);
       return;
     }
@@ -140,7 +143,7 @@
     start();
   }
 
-  /* ---------- basics: the buy-in, the chip set and the players ---------- */
+  /* ---------- basics: the buy-in, the players and the chip set ---------- */
   function basicTab() {
     const dr = d();
 
@@ -166,25 +169,26 @@
     nameIn.addEventListener('keydown', e => { if (e.key === 'Enter') addName(); });
     const extras = extrasOn();
 
+    const chipSet = editing() ? colourEditor() : setSummary();
     return h('div', { class: 'stack' },
-      rateBlock(),
-      h('div', { class: 'label' }, T('Your chips')),
-      chipSetPicker(),
-      colourEditor(),
+      rateBlock(chipSet.refresh),
       h('div', { class: 'label' }, T('Players') + (seated().length ? ' · ' + seated().length : '')),
       h('div', { class: 'row gap' }, nameIn, h('button', { class: 'btn', onclick: addName }, T('Add'))),
       h('div', { class: 'pill-list' },
         seated().map(pid => h('button', { class: 'pill on', onclick: () => toggleP(pid) }, '✓ ' + S.nameOf(pid))),
         others.map(p => h('button', { class: 'pill', onclick: () => toggleP(p.id) }, p.name))),
+      h('div', { class: 'label' }, T('Your chips')),
+      chipSetPicker(),
+      chipSet.nodes,
       extras.length ? h('div', { class: 'muted small' }, T('Also on: {list}', { list: extras.join(' · ') })) : null);
   }
 
-  /* the host's saved chip sets as pills, a new one, and the name of the one being edited */
+  /* the host's saved chip sets as pills and a new one; while editing, the set's name and Delete */
   function chipSetPicker() {
     const dr = d();
     const sets = S.db.chipSets;
     const saved = S.chipSet(dr.chipSetId);
-    const newSet = () => S.commit(() => { dr.chipSetId = U.uid(); dr.chipSetName = ''; dr.colours = DEFAULT_COLOURS(); });
+    const newSet = () => { Snd.tick(); S.commit(() => { dr.chipSetId = U.uid(); dr.chipSetName = ''; dr.colours = DEFAULT_COLOURS(); dr.editSet = true; }); };
     const remove = () => U.ask({ title: T('Delete {name}?', { name: saved.name || T('My chips') }), ok: T('Delete'), danger: true }).then(ok => {
       if (!ok) return;
       S.commit(() => {
@@ -196,12 +200,60 @@
     return [
       sets.length ? h('div', { class: 'pill-list' },
         sets.map(set => h('button', { class: 'pill' + (set.id === dr.chipSetId ? ' on' : ''), onclick: () => { Snd.tick(); S.commit(() => useSet(dr, set)); } }, set.name || T('My chips'))),
-        h('button', { class: 'pill', onclick: newSet }, '+ ' + T('New set'))) : null,
-      h('div', { class: 'row gap' },
+        h('button', { class: 'pill' + (saved ? '' : ' on'), onclick: newSet }, '+ ' + T('New set'))) : null,
+      editing() ? h('div', { class: 'row gap' },
         h('input', { type: 'text', class: 'grow', value: dr.chipSetName, maxLength: 24, placeholder: T('Name this set, e.g. Home set'), 'aria-label': T('Chip set name'),
           oninput: e => { dr.chipSetName = e.target.value; keep(); } }),
-        saved ? h('button', { class: 'btn ghost', onclick: remove }, T('Delete')) : null),
-      h('div', { class: 'muted small' }, T('Saved on this phone as you type, ready for your next game.'))];
+        saved ? h('button', { class: 'btn ghost', onclick: remove }, T('Delete')) : null) : null];
+  }
+
+  /* under the set: how many buy-ins the house's chips cover, and a warning when a buy-in can't be made exactly */
+  function setNotes() {
+    const dr = d();
+    const warn = h('div', { class: 'warn small' });
+    const bankLine = h('div', { class: 'derived' });
+    const check = () => {
+      const value = cv(), hk = handChips();
+      bankLine.hidden = value == null || !hk;
+      if (bankLine.hidden) { warn.textContent = ''; return; }
+      warn.textContent = Core.exactMix(hk, dr.colours.filter(c => c.chips > 0)) ? '' : T('A buy-in of {n} chips can’t be made exactly with these colours.', { n: U.fmtChips(hk) });
+      const counted = dr.colours.filter(c => Number.isInteger(c.have) && c.chips > 0);
+      const pieces = counted.reduce((s, c) => s + c.have, 0), total = counted.reduce((s, c) => s + c.have * c.chips, 0);
+      U.clear(bankLine);
+      if (!counted.length) { bankLine.textContent = T('Count the chips in your set so the app can split colours fairly and keep some in the bank.'); return; }
+      /* numbers in green: split the translated template on its {placeholders} */
+      const nums = { n: U.fmtChips(pieces), m: Core.fmt(total * value, sym()), k: U.fmtChips(Math.floor(total / hk)), b: Core.fmt(handCents(), sym()) };
+      bankLine.append(h('span', null, T('The house has {n} chips worth {m}: enough for {k} buy-ins of {b}.').split(/\{(\w+)\}/)
+        .map((part, i) => i % 2 ? h('span', { class: 'win' }, nums[part]) : part)));
+    };
+    check();
+    return { nodes: [bankLine, warn], check };
+  }
+
+  /* a saved set at a glance: each colour's value in chips and in money and how many the house has; Edit opens the editor */
+  function setSummary() {
+    const dr = d();
+    const notes = setNotes();
+    const list = h('div', { class: 'set-sum' });
+    const fill = () => {
+      U.clear(list);
+      const value = cv();
+      list.append(h('div', { class: 'set-sum-row set-sum-head', 'aria-hidden': 'true' },
+        h('span'), h('span', null, T('Value')), h('span'), h('span', null, sym()), h('span', null, T('How many'))));
+      dr.colours.slice().sort((a, b) => a.chips - b.chips).forEach(c => list.append(h('div', { class: 'set-sum-row' },
+        U.chip(c.color),
+        h('span', null, U.fmtChips(c.chips)),
+        h('span', { class: 'eq' }, '='),
+        h('span', null, value != null ? Core.fmt(c.chips * value, sym()) : '—'),
+        h('span', { class: c.have == null ? 'muted' : '' }, c.have == null ? T('not counted') : U.fmtChips(c.have)))));
+    };
+    fill();
+    return {
+      nodes: [list,
+        h('button', { class: 'btn', onclick: () => { Snd.tick(); S.commit(() => { dr.editSet = true; }); } }, T('Edit set')),
+        notes.nodes],
+      refresh: () => { fill(); notes.check(); },
+    };
   }
 
   /* with a host fee: who collects it, one of the players or someone who isn't playing */
@@ -357,94 +409,99 @@
       on && body ? h('div', { class: 'stack opt-body' }, body()) : null);
   }
 
+  /* the set's colours, one line each: the chip (tap to recolour), its value in chips and in money (each rewrites the other), how many the house has */
   function colourEditor() {
     const dr = d();
-    const value = cv();
-    if (value == null) return h('div', { class: 'warn small' }, T('One chip must be a whole number of cents.'));
-    const warn = h('div', { class: 'warn small' });
-    const bankLine = h('div', { class: 'derived' });
-    const checkHand = () => {
-      warn.textContent = Core.exactMix(handChips(), dr.colours.filter(c => c.chips > 0)) ? '' : T('A buy-in of {n} chips can’t be made exactly with these colours.', { n: U.fmtChips(handChips()) });
-      const counted = dr.colours.filter(c => Number.isInteger(c.have) && c.chips > 0);
-      const pieces = counted.reduce((s, c) => s + c.have, 0), total = counted.reduce((s, c) => s + c.have * c.chips, 0);
-      bankLine.textContent = counted.length
-        ? T('The house has {n} chips worth {m}: enough for {k} buy-ins of {b}.', { n: U.fmtChips(pieces), m: Core.fmt(total * value, sym()), k: U.fmtChips(Math.floor(total / handChips())), b: Core.fmt(handCents(), sym()) })
-        : T('Count the chips in your set so the app can split colours fairly and keep some in the bank.');
-    };
+    if (cv() == null) return { nodes: h('div', { class: 'warn small' }, T('One chip must be a whole number of cents.')), refresh: () => {} };
+    const notes = setNotes();
     /* a value in money: whole amounts without the cents ("500", "2.50") */
-    const moneyText = chips => { const cents = chips * value; return cents % 100 ? (cents / 100).toFixed(2) : String(cents / 100); };
+    const moneyText = chips => {
+      const value = cv();
+      if (value == null || !(chips > 0)) return '';
+      const cents = chips * value;
+      return cents % 100 ? (cents / 100).toFixed(2) : String(cents / 100);
+    };
+    /* the money −/+ moves by a round amount that is a whole number of chips (10¢ when a chip is 2¢); returns that step in chips */
+    const moneyStep = () => {
+      const value = cv() || 1;
+      const cents = [5, 10, 25, 50, 100, 500, 1000].find(x => x % value === 0);
+      return cents ? cents / value : 1;
+    };
+    const fixMoney = [];
     const rows = dr.colours.map(c => {
-      /* the value shows twice, in chips and in money; editing either one rewrites the other */
       const chipsIn = h('input', {
         type: 'text', inputMode: 'numeric', 'aria-label': T('Value (chips)'),
         value: c.chips > 0 ? String(c.chips) : '',
-        oninput: e => { c.chips = Core.parseInt0(e.target.value) || 0; moneyIn.value = c.chips > 0 ? moneyText(c.chips) : ''; changed(); },
+        oninput: e => { c.chips = Core.parseInt0(e.target.value) || 0; moneyIn.value = moneyText(c.chips); changed(); },
       });
       const moneyIn = h('input', {
         type: 'text', inputMode: 'decimal', 'aria-label': T('Value ({s})', { s: sym() }),
-        value: c.chips > 0 ? moneyText(c.chips) : '',
+        value: moneyText(c.chips),
         oninput: e => {
-          const cents = Core.parseMoney(e.target.value);
-          c.chips = cents && cents % value === 0 ? cents / value : 0;
+          const cents = Core.parseMoney(e.target.value), value = cv();
+          c.chips = value && cents && cents % value === 0 ? cents / value : 0;
           chipsIn.value = c.chips > 0 ? String(c.chips) : '';
           changed();
         },
         onblur: () => { if (c.chips > 0) moneyIn.value = moneyText(c.chips); },
       });
+      fixMoney.push(() => { if (document.activeElement !== moneyIn) moneyIn.value = moneyText(c.chips); });
       const changed = () => {
         const bad = !(c.chips > 0);
         chipsIn.classList.toggle('bad-text', bad); moneyIn.classList.toggle('bad-text', bad);
-        keep(); checkHand();
+        keep(); notes.check();
       };
-      const bumpVal = d => {
-        const next = Math.max(1, U.snap(c.chips || 0, d));
+      const setChips = next => {
         if (next === c.chips) return false;
         c.chips = next; chipsIn.value = String(next); moneyIn.value = moneyText(next);
         changed();
       };
-      const haveNote = h('span');
+      const bumpVal = st => setChips(Math.max(1, U.snap(c.chips || 0, st)));
+      const bumpMoney = st => { const unit = moneyStep(); return setChips(Math.max(unit, U.snap(c.chips || 0, st * unit))); };
+      const haveNote = h('span', { class: 'step-note' });
       const showHave = () => { haveNote.textContent = c.have == null ? T('not counted') : ''; };
       const have = h('input', {
         type: 'text', inputMode: 'numeric', placeholder: '—', 'aria-label': T('How many the house has'),
         value: Number.isInteger(c.have) ? String(c.have) : '',
-        oninput: e => { c.have = Core.parseInt0(e.target.value); keep(); showHave(); checkHand(); },
+        oninput: e => { c.have = Core.parseInt0(e.target.value); keep(); showHave(); notes.check(); },
       });
-      const bumpHave = d => {
-        const next = Math.max(0, U.snap(c.have || 0, d));
+      const bumpHave = st => {
+        const next = Math.max(0, U.snap(c.have || 0, st));
         if (next === c.have) return false;
         c.have = next; have.value = String(next);
-        keep(); showHave(); checkHand();
+        keep(); showHave(); notes.check();
       };
       showHave();
       if (!(c.chips > 0)) { chipsIn.classList.add('bad-text'); moneyIn.classList.add('bad-text'); }
+      /* each column: the number between its − and + (hold to speed up) */
+      const cell = (input, bump, note) => h('div', { class: 'step-cell' }, h('div', { class: 'stepper' }, U.hold(-1, bump), input, U.hold(1, bump)), note);
       const chip = U.chip(c.color);
       return h('div', { class: 'colour-row' },
         h('label', { class: 'chip-pick' }, chip,
           h('input', { type: 'color', value: c.color, 'aria-label': T('Colour'), oninput: e => { c.color = e.target.value; U.setChip(chip, c.color); keep(); } })),
-        h('div', { class: 'step-cell' },
-          h('div', { class: 'step-line' }, U.hold(-1, bumpVal), chipsIn, U.hold(1, bumpVal)),
-          h('span', { class: 'step-note' })),
-        h('div', { class: 'step-cell' },
-          h('div', { class: 'step-line money-in' }, moneyIn),
-          h('span', { class: 'step-note' })),
-        h('div', { class: 'step-cell' },
-          h('div', { class: 'step-line' }, U.hold(-1, bumpHave), have, U.hold(1, bumpHave)),
-          h('span', { class: 'step-note' }, haveNote)),
+        cell(chipsIn, bumpVal),
+        h('span', { class: 'eq', 'aria-hidden': 'true' }, '='),
+        cell(moneyIn, bumpMoney),
+        cell(have, bumpHave, haveNote),
         h('button', { class: 'icon-btn', 'aria-label': T('Remove'), onclick: () => S.commit(() => { dr.colours = dr.colours.filter(x => x !== c); keep(); }) }, '✕'));
     });
-    /* column labels, lined up with the rows below: the chip, its value in chips and in money, how many the house has */
+    /* column labels, lined up with the rows below: the chip, its value in chips = the same in money, how many the house has */
+    const symHead = h('span', null, sym());
     const head = h('div', { class: 'colour-head', 'aria-hidden': 'true' },
-      h('span', null, T('Colour')),
-      h('span', null, T('Chips')),
-      h('span', null, sym()),
-      h('span', null, T('How many')),
-      h('span'));
-    checkHand();
-    return [
-      h('div', { class: 'muted small' }, T('Set each colour’s value, in chips or in money, and how many of it the house has.')),
-      h('div', { class: 'colour-grid' }, head, rows),
-      h('button', { class: 'btn ghost', onclick: () => S.commit(() => { dr.colours.push({ id: U.uid(), color: '#2f6fdb', chips: 5000, have: null }); keep(); }) }, '+ ' + T('Add colour')),
-      bankLine, warn];
+      h('span', null, T('Colour')), h('span', null, T('Value')), h('span'), symHead, h('span', null, T('How many')), h('span'));
+    /* Done keeps the set (a new one too) and folds it back to the summary */
+    const done = () => { Snd.tick(); keep(); S.commit(() => { dr.editSet = false; }); };
+    return {
+      nodes: [
+        h('div', { class: 'muted small' }, T('Set each colour’s value, in chips or in money, and how many of it the house has.')),
+        h('div', { class: 'colour-grid' }, head, rows),
+        h('div', { class: 'row gap' },
+          h('button', { class: 'btn ghost grow', onclick: () => S.commit(() => { dr.colours.push({ id: U.uid(), color: '#2f6fdb', chips: 5000, have: null }); keep(); }) }, '+ ' + T('Add colour')),
+          h('button', { class: 'btn primary', onclick: done }, T('Done'))),
+        h('div', { class: 'muted small' }, T('Saved on this phone as you type, ready for your next game.')),
+        notes.nodes],
+      refresh: () => { symHead.textContent = sym(); fixMoney.forEach(f => f()); notes.check(); },
+    };
   }
 
   function feeEditor() {

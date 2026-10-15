@@ -272,24 +272,35 @@ input.switch:focus { box-shadow: none; }
 }
 /* chip set editor: a labelled header, then one line per colour: the chip (tap to recolour), value in chips −/+, the same value in money, how many −/+ */
 .colour-grid { display: flex; flex-direction: column; }
-.colour-row, .colour-head { display: grid; grid-template-columns: 40px minmax(0, 1fr) minmax(52px, .62fr) minmax(0, 1fr) 24px; gap: 8px 6px; align-items: center; }
+.colour-row, .colour-head { display: grid; grid-template-columns: 34px minmax(0, 1fr) 8px minmax(0, 1fr) minmax(0, 1fr) 20px; gap: 6px 4px; align-items: center; }
 .colour-head { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .02em; padding-bottom: 6px; text-align: center; }
 .colour-head > :first-child { text-align: left; overflow: visible; }
 .colour-head > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .colour-row { padding: 10px 0; border-top: .5px solid var(--line); align-items: start; }
-.colour-row > .chip-pick { margin-top: -2px; }
-.colour-row > .icon-btn { min-width: 24px; width: 24px; height: 36px; padding: 0; color: var(--muted); }
-.chip-pick { position: relative; width: 40px; height: 40px; flex: none; cursor: pointer; border-radius: 50%; }
-.chip-pick .swatch { width: 40px; height: 40px; }
+.colour-row > .chip-pick { margin-top: 2px; }
+.colour-row > .eq { line-height: 40px; }
+.colour-row > .icon-btn { min-width: 20px; width: 20px; height: 40px; padding: 0; color: var(--muted); }
+.eq { text-align: center; color: var(--muted); font-weight: 600; }
+.chip-pick { position: relative; width: 34px; height: 34px; flex: none; cursor: pointer; border-radius: 50%; }
+.chip-pick .swatch { width: 34px; height: 34px; }
 .chip-pick input[type="color"] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; padding: 0; }
 .chip-pick:focus-within { outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 2px; }
 .step-cell { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
-.step-line { display: flex; align-items: center; justify-content: center; gap: 2px; width: 100%; min-width: 0; }
-.step-line .round-btn { width: 26px; height: 26px; font-size: 18px; flex: none; }
-.step-line input { flex: 1 1 0; min-width: 0; max-width: 84px; text-align: center; font-weight: 600; padding: 7px 1px; min-height: 36px; font-variant-numeric: tabular-nums; }
-.step-line.money-in input { max-width: none; }
-.step-note { font-size: 12px; color: var(--muted); line-height: 1.2; min-height: 1.2em; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
-@media (max-width: 360px) { .colour-row, .colour-head { grid-template-columns: 32px minmax(0, 1fr) minmax(48px, .6fr) minmax(0, 1fr) 20px; gap: 6px 4px; } .chip-pick, .chip-pick .swatch { width: 32px; height: 32px; } .step-line .round-btn { width: 24px; height: 24px; } }
+/* a capsule stepper: − number + in one field */
+.stepper { display: flex; align-items: center; width: 100%; height: 40px; border-radius: 999px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); transition: box-shadow .2s var(--ease); }
+.stepper:focus-within { box-shadow: inset 0 0 0 2px var(--accent); }
+.stepper .round-btn { width: 24px; height: 40px; border-radius: 999px; background: none; box-shadow: none; font-size: 18px; }
+.stepper input { flex: 1 1 0; width: 0; min-width: 0; min-height: 0; height: 40px; padding: 0; background: none; box-shadow: none; border-radius: 0; text-align: center; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.stepper input:focus { box-shadow: none; }
+.step-note { font-size: 12px; color: var(--muted); line-height: 1.2; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.step-note:empty { display: none; }
+.set-sum { display: flex; flex-direction: column; }
+.set-sum-row { display: grid; grid-template-columns: 32px minmax(0, 1fr) 8px minmax(0, 1fr) minmax(0, 1fr); gap: 6px; align-items: center; padding: 8px 0; border-top: .5px solid var(--line); text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
+.set-sum-row > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.set-sum-row > .muted { font-weight: 400; font-size: 13px; }
+.set-sum-row .swatch { width: 28px; height: 28px; }
+.set-sum-head { border-top: 0; padding: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .02em; }
+@media (max-width: 360px) { .colour-row, .colour-head { grid-template-columns: 28px minmax(0, 1fr) 6px minmax(0, 1fr) minmax(0, 1fr) 18px; gap: 6px 3px; } .chip-pick, .chip-pick .swatch { width: 28px; height: 28px; } .stepper .round-btn { width: 20px; } .stepper input { font-size: 14px; } }
 .round-btn { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .rate-row { display: flex; gap: 8px; align-items: center; }
 .rate-row input.grow { min-width: 0; }
