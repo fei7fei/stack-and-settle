@@ -81,7 +81,7 @@ Quirks of this setup:
 ## Status
 
 ### Done (verified by unit tests and the e2e smoke test)
-- [x] Setup: one screen, two tabs. Basics: the buy-in rate ("N chips = money", with the nearest valid chip count suggested), the host's own chip set (each colour is a chip you tap to recolour, with −/+ steppers for its value and how many the house owns; hold to speed up; named, saved as you type and picked again next game) and the players (saved players as toggles). More options, all on one page and all off for a new game: Detailed mode, fixed buy-ins, chip-leader cap, host fee (with the host picker), blinds timer, choose seats (Detailed only; moves players between seats). Quick start from the last game keeps its extras.
+- [x] Setup: one screen, two tabs. Basics: the buy-in rate ("N chips = money", with the nearest valid chip count suggested), the host's own chip set (one line per colour under labelled columns Colour / Value (chips or money) / How many: the chip you tap to recolour, the value −/+ on the left and the house's count −/+ on the right; hold to speed up; named, saved as you type and picked again next game) and the players (saved players as toggles). More options, all on one page and all off for a new game: Detailed mode, fixed buy-ins, chip-leader cap, host fee (with the host picker), blinds timer, choose seats (Detailed only; moves players between seats). Quick start from the last game keeps its extras.
 - [x] Simple mode: player list with buy-ins, a "Buy in" button per row (opens the panel), add player, list counting. Detailed mode: the table.
 - [x] Chips only during the game; money only in setup and results.
 - [x] Table (Detailed mode):

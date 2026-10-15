@@ -403,7 +403,7 @@
       };
       showDerived();
       const haveNote = h('span');
-      const showHave = () => { haveNote.textContent = c.have == null ? T('not counted') : T('in the set'); };
+      const showHave = () => { haveNote.textContent = c.have == null ? T('not counted') : ''; };
       const have = h('input', {
         type: 'text', inputMode: 'numeric', placeholder: '—', 'aria-label': T('How many the house has'),
         value: Number.isInteger(c.have) ? String(c.have) : '',
@@ -420,21 +420,25 @@
       return h('div', { class: 'colour-row' },
         h('label', { class: 'chip-pick' }, chip,
           h('input', { type: 'color', value: c.color, 'aria-label': T('Colour'), oninput: e => { c.color = e.target.value; U.setChip(chip, c.color); keep(); } })),
-        h('div', { class: 'step-line' },
-          h('span', { class: 'step-label' }, h('span', null, T('Value')), derived),
-          U.hold(-1, bumpVal),
-          dr.colourUnit === 'money' ? h('span', { class: 'money-in' }, h('span', null, sym()), val) : val,
-          U.hold(1, bumpVal)),
-        h('button', { class: 'icon-btn', 'aria-label': T('Remove'), onclick: () => S.commit(() => { dr.colours = dr.colours.filter(x => x !== c); keep(); }) }, '✕'),
-        h('div', { class: 'step-line' },
-          h('span', { class: 'step-label' }, h('span', null, T('How many')), haveNote),
-          U.hold(-1, bumpHave), have, U.hold(1, bumpHave)));
+        h('div', { class: 'step-cell' },
+          h('div', { class: 'step-line' }, U.hold(-1, bumpVal), val, U.hold(1, bumpVal)),
+          h('span', { class: 'step-note' }, derived)),
+        h('div', { class: 'step-cell' },
+          h('div', { class: 'step-line' }, U.hold(-1, bumpHave), have, U.hold(1, bumpHave)),
+          h('span', { class: 'step-note' }, haveNote)),
+        h('button', { class: 'icon-btn', 'aria-label': T('Remove'), onclick: () => S.commit(() => { dr.colours = dr.colours.filter(x => x !== c); keep(); }) }, '✕'));
     });
+    /* column labels, lined up with the rows below: the chip, its value (in the chosen unit), how many the house has */
+    const head = h('div', { class: 'colour-head', 'aria-hidden': 'true' },
+      h('span', null, T('Colour')),
+      h('span', null, dr.colourUnit === 'chips' ? T('Value (chips)') : T('Value ({s})', { s: sym() })),
+      h('span', null, T('How many')),
+      h('span'));
     checkHand();
     return [
       h('div', { class: 'muted small' }, T('Set each colour’s value and how many of it the house has.')),
       seg([['chips', T('Value in chips')], ['money', T('Value in money')]], dr.colourUnit, v => S.commit(() => { dr.colourUnit = v; })),
-      h('div', { class: 'stack-s' }, rows),
+      h('div', { class: 'colour-grid' }, head, rows),
       h('button', { class: 'btn ghost', onclick: () => S.commit(() => { dr.colours.push({ id: U.uid(), color: '#2f6fdb', chips: 5000, have: null }); keep(); }) }, '+ ' + T('Add colour')),
       bankLine, warn];
   }

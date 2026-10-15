@@ -105,6 +105,13 @@ window.sw = (label, on) => { const r = $all('.toggle-row').find(x => x.textConte
     const held = col().chips; S.commit(() => { const c = S.db.draft.colours[0]; c.chips = 25; c.have = 150; }); await wait(50);
     return [tapped, held > 60 && held % 10 === 0, $all('.colour-row')[0].querySelector('.step-line input').value];`);
   await shot('03-quick-setup');
+  await step('chip editor has labelled columns', `$q('.colour-head').scrollIntoView({ block: 'start' }); window.scrollBy(0, -90); await wait(100); return [...$q('.colour-head').children].map(e => e.textContent);`);
+  await shot('03a-chip-editor');
+  await step('money mode labels the value column', `[...$all('.seg-btn')].find(b => b.textContent === 'Value in money').click(); await wait(100); $q('.colour-head').scrollIntoView({ block: 'start' }); window.scrollBy(0, -90); await wait(100);
+    const r = [$q('.colour-head').children[1].textContent, $all('.colour-row')[0].querySelector('.step-line input').value];
+    return r;`);
+  await shot('03b-chip-editor-money');
+  await step('back to chips', `[...$all('.seg-btn')].find(b => b.textContent === 'Value in chips').click(); await wait(100); window.scrollTo(0, 0); return $q('.colour-head').children[1].textContent;`);
   await step('bad chip value rejected', `const ins = $all('.wizard input'); type(ins[1], '300'); type(ins[0], '10'); await wait(50); return $q('.derived').textContent;`, 200);
   await shot('04-money-bad');
   await step('use suggestion', `btn('Use 250'); await wait(50); type($all('.wizard input')[0], '20'); type($all('.wizard input')[1], '1000'); return $q('.derived').textContent;`);
