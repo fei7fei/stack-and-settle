@@ -72,7 +72,7 @@
       };
       const rows = colours.map(col => {
         const n = h('input', {
-          type: 'text', inputMode: 'numeric', class: 'count-input', 'aria-label': col.name,
+          type: 'text', inputMode: 'numeric', class: 'count-input', 'aria-label': T('{n} chips', { n: U.fmtChips(col.chips) }),
           onfocus: () => n.select(),
           oninput: () => { const v = Core.parseInt0(n.value); if (v != null) setCount(col.id, v); },
           onblur: () => { n.value = String(counts[col.id]); },
@@ -92,15 +92,15 @@
           left.className = l < 0 ? 'bad-text' : 'muted';
         });
         const bump = d => {
-          setCount(col.id, counts[col.id] + d);
+          if (d < 0 && !counts[col.id]) return false;
+          setCount(col.id, U.snap(counts[col.id], d));
           n.classList.remove('pop'); void n.offsetWidth; n.classList.add('pop');
           Snd.clack();
         };
         return U.append(row, [
-          h('span', { class: 'swatch lg', style: { background: col.color } }),
-          h('span', { class: 'grow col' }, h('strong', null, col.name), math, left),
-          h('button', { class: 'round-btn', 'aria-label': '−', onclick: () => bump(-1) }, '−'), n,
-          h('button', { class: 'round-btn', 'aria-label': '+', onclick: () => bump(1) }, '+')]);
+          U.chip(col.color, 'lg'),
+          h('span', { class: 'grow col' }, h('strong', null, U.fmtChips(col.chips)), math, left),
+          U.hold(-1, bump), n, U.hold(1, bump)]);
       });
       showAll();
 

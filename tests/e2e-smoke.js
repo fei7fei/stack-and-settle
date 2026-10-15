@@ -99,6 +99,11 @@ window.sw = (label, on) => { const r = $all('.toggle-row').find(x => x.textConte
   await step('name the chip set', `type($q('[aria-label="Chip set name"]'), 'Home set'); await wait(50); return S.db.chipSets.map(s => s.name + ':' + s.colours.map(c => c.chips + 'x' + c.have).join(' '));`);
   await step('a changed count is saved', `type($all('[aria-label="How many the house has"]')[0], '200'); await wait(50); const a = S.db.chipSets[0].colours[0].have;
     type($all('[aria-label="How many the house has"]')[0], '150'); await wait(50); return [a, S.db.chipSets[0].colours[0].have];`);
+  await step('chip steppers: tap is 1, hold speeds up', `const b = () => $all('.colour-row')[0].querySelectorAll('.round-btn'); const col = () => S.db.chipSets[0].colours[0];
+    b()[1].click(); b()[3].click(); await wait(50); const tapped = [col().chips, col().have];
+    b()[1].dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); await wait(1500); b()[1].dispatchEvent(new PointerEvent('pointerup', { bubbles: true })); await wait(50);
+    const held = col().chips; S.commit(() => { const c = S.db.draft.colours[0]; c.chips = 25; c.have = 150; }); await wait(50);
+    return [tapped, held > 60 && held % 10 === 0, $all('.colour-row')[0].querySelector('.step-line input').value];`);
   await shot('03-quick-setup');
   await step('bad chip value rejected', `const ins = $all('.wizard input'); type(ins[1], '300'); type(ins[0], '10'); await wait(50); return $q('.derived').textContent;`, 200);
   await shot('04-money-bad');

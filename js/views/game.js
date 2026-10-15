@@ -22,9 +22,10 @@
   };
 
   /* ---------- shared bits ---------- */
+  /* a colour mix as chips: one chip icon and its count per colour, biggest value first */
   function mixText(mix, colours) {
-    return colours.filter(c => mix[c.id]).slice().sort((a, b) => b.chips - a.chips)
-      .map(c => mix[c.id] + ' ' + c.name.toLowerCase()).join(', ');
+    return h('span', { class: 'mix-inline' }, colours.filter(c => mix[c.id]).slice().sort((a, b) => b.chips - a.chips)
+      .map(c => h('span', { class: 'mix-item', title: U.fmtChips(c.chips) }, U.chip(c.color), '× ' + mix[c.id])));
   }
   Game.mixText = mixText;
   function tile(label, value, opts) {
@@ -331,7 +332,8 @@
     const c = cfg(), p = player(pid), id = U.uid();
     Snd.clack();
     S.commit(() => { p.buyins.push({ id, t: Date.now(), chips, mix }); });
-    U.toast(T('Give {name} {mix}', { name: p.name, mix: mixText(mix, c.colours) }) + ' · ' + chipsText(chips), 'good', {
+    const msg = T('Give {name} {mix}', { name: p.name, mix: '' }).split('');
+    U.toast([msg[0], mixText(mix, c.colours), msg[1], ' · ' + chipsText(chips)], 'good', {
       label: T('Undo'),
       fn: () => { S.commit(() => { p.buyins = p.buyins.filter(b => b.id !== id); }); if (panelApi) panelApi.refresh(); },
     });
@@ -369,8 +371,8 @@
           h('div', null, h('small', null, T('Pieces')), h('strong', null, U.fmtChips(pieces))),
           h('div', null, h('small', null, T('Chips')), h('strong', null, U.fmtChips(total)))),
         h('div', { class: 'stack-s' }, c.colours.slice().sort((a, b) => b.chips - a.chips).map(col => h('div', { class: 'count-row' },
-          h('span', { class: 'swatch', style: { background: col.color } }),
-          h('span', { class: 'grow' }, col.name, h('small', { class: 'muted' }, ' × ' + U.fmtChips(col.chips))),
+          U.chip(col.color),
+          h('span', { class: 'grow' }, h('strong', null, U.fmtChips(col.chips))),
           bank[col.id] == null ? h('span', { class: 'muted small' }, T('not counted'))
             : h('strong', { class: bank[col.id] < 0 ? 'bad-text' : null }, T('{a} of {b} left', { a: bank[col.id], b: col.have }))))),
         h('div', { class: 'muted small' }, T('Buy-ins take chips from the bank and cash-outs put them back. Suggested mixes keep some of every colour for later buy-ins.')));
@@ -458,16 +460,16 @@
         const inp = h('input', { type: 'text', inputMode: 'numeric', class: 'count-input', value: counts[col.id] ? String(counts[col.id]) : '', placeholder: '0',
           oninput: e => { counts[col.id] = Core.parseInt0(e.target.value) || 0; update(); } });
         const bump = d => {
-          counts[col.id] = Math.max(0, counts[col.id] + d);
+          if (d < 0 && !counts[col.id]) return false;
+          counts[col.id] = Math.max(0, U.snap(counts[col.id] || 0, d));
           inp.value = counts[col.id] ? String(counts[col.id]) : '';
           inp.classList.remove('pop'); void inp.offsetWidth; inp.classList.add('pop');
           Snd.clack(); update();
         };
         return h('div', { class: 'count-row' },
-          h('span', { class: 'swatch', style: { background: col.color } }),
-          h('span', { class: 'grow' }, col.name, h('small', { class: 'muted' }, ' × ' + U.fmtChips(col.chips))),
-          h('button', { class: 'round-btn', onclick: () => bump(-1), 'aria-label': '−' }, '−'), inp,
-          h('button', { class: 'round-btn', onclick: () => bump(1), 'aria-label': '+' }, '+'));
+          U.chip(col.color),
+          h('span', { class: 'grow' }, h('strong', null, U.fmtChips(col.chips))),
+          U.hold(-1, bump), inp, U.hold(1, bump));
       });
       const extraInp = h('input', { type: 'text', inputMode: 'numeric', class: 'count-input wide', value: extra ? String(extra) : '', placeholder: '0',
         oninput: e => { extra = Core.parseInt0(e.target.value) || 0; update(); } });
@@ -516,7 +518,7 @@
           h('div', { class: 'big-msg' }, T('Take out {n} chips', { n: U.fmtChips(take) })),
           h('div', { class: 'muted small' }, Core.fmtPct(c.fee.bps) + ' × ' + U.fmtChips(pot)),
           h('div', { class: 'mix-chips' }, c.colours.filter(col => grab.mix[col.id]).slice().sort((a, b) => b.chips - a.chips).map(col =>
-            h('span', { class: 'mix-chip' }, h('span', { class: 'swatch', style: { background: col.color } }), grab.mix[col.id] + ' × ' + col.name))),
+            h('span', { class: 'mix-chip', title: U.fmtChips(col.chips) }, U.chip(col.color), '× ' + grab.mix[col.id]))),
           grab.remainder ? h('div', { class: 'warn small' }, T('{n} chips can’t be grabbed exactly. Make change from the pot.', { n: grab.remainder })) : null]);
       };
       input.addEventListener('input', update);

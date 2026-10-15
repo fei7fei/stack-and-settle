@@ -124,7 +124,7 @@
     'Biggest pot': '最大底池', 'Longest win streak': '最长连胜', 'Tags': '标签', 'Chips won': '赢得筹码',
 
     // setup
-    'White': '白', 'Red': '红', 'Green': '绿', 'Black': '黑', 'Blue': '蓝',
+
     'Simple': '简单', 'Detailed': '详细',
     'A table seats 10 at most.': '一桌最多 10 人。', 'Host fee {p}%': '抽水 {p}%', 'Fixed buy-ins': '固定买入',
     'Chip-leader rule': '筹码上限规则', 'Your chips': '你的筹码', 'My chips': '我的筹码', 'New set': '新套装',
@@ -149,7 +149,7 @@
     'A buy-in of {n} chips can’t be made exactly with these colours.': '这些颜色无法正好凑出 {n} 筹码的买入。',
     'The house has {n} chips worth {m}: enough for {k} buy-ins of {b}.': '庄家共有 {n} 枚筹码，价值 {m}，够 {k} 次 {b} 的买入。',
     'Count the chips in your set so the app can split colours fairly and keep some in the bank.': '清点你的筹码数量，应用就能公平分配颜色，并在库存中留出余量。',
-    'how many?': '多少枚？', 'in the set': '库存', 'How many the house has': '庄家有多少枚',
+    'Value': '面值', 'How many': '数量', 'in the set': '库存', 'How many the house has': '庄家有多少枚',
     'Set each colour’s value and how many of it the house has.': '设置每种颜色的面值，以及庄家有多少枚。', 'Add at least one chip colour.': '请至少添加一种筹码颜色。',
     'Every colour needs a value in whole chips.': '每种颜色都需要整数筹码面值。', 'Enter a fee percentage, for example 2.5.': '请输入抽水比例，例如 2.5。',
     'Minimum pot must be a whole number of chips.': '最低底池必须是整数筹码。', "Enter the host's name.": '请输入主持人名字。',
@@ -158,7 +158,7 @@
     'Enter both values to see the value of one chip.': '输入两个数值即可看到单个筹码的价值。', '1 chip = {v}': '1 筹码 = {v}',
  '1 chip would be {v}. Not a whole number of cents.': '1 筹码将是 {v}，不是整分。',
     'Use {n} chips ({v} each)': '改用 {n} 筹码（每个 {v}）', 'Currency': '货币', 'invalid': '无效',
-    'Colour': '颜色', 'Name': '名称', 'Value in chips': '按筹码计', 'Value in money': '按金额计', 'Add colour': '添加颜色',
+    'Colour': '颜色', 'Value in chips': '按筹码计', 'Value in money': '按金额计', 'Add colour': '添加颜色',
     'Percent of pot': '底池比例', 'No rake below (chips)': '低于此数不抽水（筹码）',
     'Host name': '主持人名字',
     'Small blind': '小盲', 'Big blind': '大盲', 'Minutes per level': '每级分钟数', 'Blind levels (small / big)': '盲注级别（小盲 / 大盲）', 'Add level': '添加级别',

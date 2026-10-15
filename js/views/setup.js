@@ -6,10 +6,10 @@
   const h = U.h;
 
   const DEFAULT_COLOURS = () => [
-    { id: U.uid(), name: T('White'), color: '#f4f4f4', chips: 25, have: 150 },
-    { id: U.uid(), name: T('Red'), color: '#d93a3a', chips: 100, have: 150 },
-    { id: U.uid(), name: T('Green'), color: '#1a9e55', chips: 500, have: 100 },
-    { id: U.uid(), name: T('Black'), color: '#222222', chips: 1000, have: 100 },
+    { id: U.uid(), color: '#f4f4f4', chips: 25, have: 150 },
+    { id: U.uid(), color: '#d93a3a', chips: 100, have: 150 },
+    { id: U.uid(), color: '#1a9e55', chips: 500, have: 100 },
+    { id: U.uid(), color: '#222222', chips: 1000, have: 100 },
   ];
   const DEFAULT_LEVELS = () => [[25, 50], [50, 100], [100, 200], [200, 400], [300, 600], [500, 1000], [1000, 2000]].map(([sb, bb]) => ({ sb, bb }));
   const SIZES = [6, 8, 9, 10];
@@ -371,17 +371,20 @@
         ? T('The house has {n} chips worth {m}: enough for {k} buy-ins of {b}.', { n: U.fmtChips(pieces), m: Core.fmt(total * value, sym()), k: U.fmtChips(Math.floor(total / handChips())), b: Core.fmt(handCents(), sym()) })
         : T('Count the chips in your set so the app can split colours fairly and keep some in the bank.');
     };
+    /* money mode steps by one whole unit of money when a chip value allows it, otherwise by one chip */
+    const moneyStep = 100 % value === 0 ? 100 / value : 1;
     const rows = dr.colours.map(c => {
-      const derived = h('span', { class: 'muted small' });
+      const derived = h('span');
       const showDerived = () => {
         derived.textContent = c.chips > 0 && Number.isInteger(c.chips)
           ? (dr.colourUnit === 'chips' ? '= ' + Core.fmt(c.chips * value, sym()) : '= ' + T('{n} chips', { n: U.fmtChips(c.chips) }))
           : T('invalid');
         derived.classList.toggle('bad-text', !(c.chips > 0));
       };
+      const valText = () => dr.colourUnit === 'chips' ? String(c.chips) : (c.chips * value / 100).toFixed(2);
       const val = h('input', {
-        type: 'text', inputMode: dr.colourUnit === 'chips' ? 'numeric' : 'decimal', class: 'w-md',
-        value: dr.colourUnit === 'chips' ? String(c.chips) : (c.chips * value / 100).toFixed(2),
+        type: 'text', inputMode: dr.colourUnit === 'chips' ? 'numeric' : 'decimal', 'aria-label': T('Value'),
+        value: valText(),
         oninput: e => {
           if (dr.colourUnit === 'chips') c.chips = Core.parseInt0(e.target.value) || 0;
           else {
@@ -391,28 +394,48 @@
           keep(); showDerived(); checkHand();
         },
       });
+      const bumpVal = d => {
+        const unit = dr.colourUnit === 'money' ? moneyStep : 1;
+        const next = Math.max(unit, U.snap(c.chips || 0, d * unit));
+        if (next === c.chips) return false;
+        c.chips = next; val.value = valText();
+        keep(); showDerived(); checkHand();
+      };
       showDerived();
-      const haveNote = h('span', { class: 'muted small' });
-      const showHave = () => { haveNote.textContent = c.have == null ? T('how many?') : T('in the set'); };
+      const haveNote = h('span');
+      const showHave = () => { haveNote.textContent = c.have == null ? T('not counted') : T('in the set'); };
       const have = h('input', {
-        type: 'text', inputMode: 'numeric', class: 'w-sm', placeholder: '—', 'aria-label': T('How many the house has'),
+        type: 'text', inputMode: 'numeric', placeholder: '—', 'aria-label': T('How many the house has'),
         value: Number.isInteger(c.have) ? String(c.have) : '',
         oninput: e => { c.have = Core.parseInt0(e.target.value); keep(); showHave(); checkHand(); },
       });
+      const bumpHave = d => {
+        const next = Math.max(0, U.snap(c.have || 0, d));
+        if (next === c.have) return false;
+        c.have = next; have.value = String(next);
+        keep(); showHave(); checkHand();
+      };
       showHave();
+      const chip = U.chip(c.color);
       return h('div', { class: 'colour-row' },
-        h('input', { type: 'color', value: c.color, 'aria-label': T('Colour'), oninput: e => { c.color = e.target.value; keep(); } }),
-        h('input', { type: 'text', value: c.name, maxLength: 14, class: 'grow', 'aria-label': T('Name'), oninput: e => { c.name = e.target.value; keep(); } }),
-        h('div', { class: 'col' }, h('div', { class: 'row gap-s' }, dr.colourUnit === 'money' ? h('span', null, sym()) : null, val), derived),
-        h('div', { class: 'col' }, have, haveNote),
-        h('button', { class: 'icon-btn', 'aria-label': T('Remove'), onclick: () => S.commit(() => { dr.colours = dr.colours.filter(x => x !== c); keep(); }) }, '✕'));
+        h('label', { class: 'chip-pick' }, chip,
+          h('input', { type: 'color', value: c.color, 'aria-label': T('Colour'), oninput: e => { c.color = e.target.value; U.setChip(chip, c.color); keep(); } })),
+        h('div', { class: 'step-line' },
+          h('span', { class: 'step-label' }, h('span', null, T('Value')), derived),
+          U.hold(-1, bumpVal),
+          dr.colourUnit === 'money' ? h('span', { class: 'money-in' }, h('span', null, sym()), val) : val,
+          U.hold(1, bumpVal)),
+        h('button', { class: 'icon-btn', 'aria-label': T('Remove'), onclick: () => S.commit(() => { dr.colours = dr.colours.filter(x => x !== c); keep(); }) }, '✕'),
+        h('div', { class: 'step-line' },
+          h('span', { class: 'step-label' }, h('span', null, T('How many')), haveNote),
+          U.hold(-1, bumpHave), have, U.hold(1, bumpHave)));
     });
     checkHand();
     return [
       h('div', { class: 'muted small' }, T('Set each colour’s value and how many of it the house has.')),
       seg([['chips', T('Value in chips')], ['money', T('Value in money')]], dr.colourUnit, v => S.commit(() => { dr.colourUnit = v; })),
       h('div', { class: 'stack-s' }, rows),
-      h('button', { class: 'btn ghost', onclick: () => S.commit(() => { dr.colours.push({ id: U.uid(), name: T('Blue'), color: '#2f6fdb', chips: 5000, have: null }); keep(); }) }, '+ ' + T('Add colour')),
+      h('button', { class: 'btn ghost', onclick: () => S.commit(() => { dr.colours.push({ id: U.uid(), color: '#2f6fdb', chips: 5000, have: null }); keep(); }) }, '+ ' + T('Add colour')),
       bankLine, warn];
   }
 

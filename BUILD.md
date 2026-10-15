@@ -20,7 +20,7 @@ Listed in load order.
 | --- | --- | --- |
 | `js/core.js` | `Core` | Money format and parse, `chipValue`, `nearestChipsPerHand`, mixes (`suggestMix`, `exactMix`, `grabMix`), the bank (`bank`, `bankTracked`, `bankMix`), `parsePct`/`rakeChips`, `distribute`, `settle` (minimum payments), `computeFinal`, `playerStats`/`allStats`/`badges`, `gameStats` |
 | `js/i18n.js` | `I18N`, `T` | Language switch and the zh dictionary |
-| `js/util.js` | `U` | `U.h()` DOM builder, `U.sheet()` bottom sheets (`api.refresh()` / `api.close()`), `U.ask()` confirm returning a Promise, toasts (optional `{label, fn}` action button, e.g. Undo), formatters, `countUp`, download/copy |
+| `js/util.js` | `U` | `U.h()` DOM builder, `U.sheet()` bottom sheets (`api.refresh()` / `api.close()`), `U.ask()` confirm returning a Promise, toasts (optional `{label, fn}` action button, e.g. Undo; the message can be nodes), `U.chip(color)` (a CSS poker chip, the only way a colour is shown), `U.hold(sign, onStep)` (a −/+ button: a tap steps 1, holding repeats with steps growing to 10 and 100) with `U.snap` (lands held steps on round numbers), formatters, `countUp`, download/copy |
 | `js/store.js` | `S` | `S.db` state; `S.load`, `S.save`, `S.commit(fn)` (mutate, then save, then `App.render()`); profiles; saved chip sets (`S.chipSet`, `S.lastChipSet`, `S.saveChipSet`, `S.deleteChipSet`); export/import/wipe |
 | `js/sound.js` | `Snd` | Web Audio synth: `clack`, `card`, `cash`, `bell`, `buzz`, `fanfare`, `tick`. Respects `settings.sound` |
 | `js/fx.js` | `FX` | `intro()` canvas opening (once per tab via sessionStorage), `confetti()`, `recap(game)` that resolves to a PNG Blob |
@@ -38,11 +38,11 @@ Listed in load order.
 
 ```
 db = { v, settings:{theme:'auto'|'light'|'dark', lang:'en'|'zh', sound}, profiles:[{id,name,etransfer,wechat}],
-       chipSets:[{id,name,colours:[{id,name,color,chips,have}],usedAt}],
+       chipSets:[{id,name,colours:[{id,color,chips,have}],usedAt}],
        games:[game…finished], current:game|null, draft:setupDraft|null, lastBackup:ts }
 game = { id, startedAt, endedAt, phase:'play'|'count'|'done', editOf?,
   config:{ mode:'simple'|'detailed', currency, symbol, handCents, handChips, cv, buyin:{fixed,leaderCap},
-           colours:[{id,name,color,chips,have}], chipSetId?, seats, fee:{on,bps,minPot}, blinds:{on,minutes,levels:[{sb,bb}]} },
+           colours:[{id,color,chips,have}], chipSetId?, seats, fee:{on,bps,minPot}, blinds:{on,minutes,levels:[{sb,bb}]} },
   players:[{ pid(=profile id), name, seat, buyins:[{id,t,chips,mix}], cashedOut:null|{chips,t,mix},
              finalChips:null|n, mix, hostOnly? }],
   hostPid, hostPlays, leaderChips?, rake:[{id,t,chips,pot}], hands:[{id,t,winners:[pid],pot,tag}],
@@ -53,6 +53,7 @@ game = { id, startedAt, endedAt, phase:'play'|'count'|'done', editOf?,
 - `colours[].have` is how many of that colour the house owns (`null` = not counted, no limit). `Core.bank(game)` derives what's left: `have` minus buy-in mixes plus cash-out mixes. Buy-ins with no mix (an impossible target) and the loose "other chips" total don't move the bank, and the house pile is kept apart from it.
 - `Core.bankMix(target, colours, bank, slots, minSlots)` picks the exact mix closest to an even spread of value, while taking at most 1/`slots` of each colour's remaining stock. `slots` is relaxed (binary search) down to `minSlots`. The game passes `slots` = 1 + players not yet in + active players, so the bank keeps a rebuy for everyone; "Everyone buys in" passes 2n / n so the same mix fits n times.
 - `leaderChips` is the last chip-leader stack the host entered (`buyin.leaderCap`). The app can't see live stacks, so it asks (`leaderCheck`) whenever a buy-in is bigger than the standard one (`handChips`) during play and someone else has bought in. Standard and smaller buy-ins never ask. In the helper's free mode the cap is max(`handChips`, `leaderChips`).
+- **Colours have no names.** A colour is shown as a chip icon (`U.chip`) plus its value; mixes show as chip × count (`Game.mixText` returns nodes). Old saves may still carry a `name` on colours; nothing reads it.
 - **Chip sets.** There are no preset boxed sets: Basics always shows the colour editor, and the draft edits one of the host's saved sets (`draft.chipSetId`, `draft.chipSetName`). Every edit (name, colour, value, count, add/remove colour) and starting the game calls `keep()`, which upserts the set into `db.chipSets` without a re-render. Saved sets show as pills (tap to load, "+ New set" starts one from the default colours, Delete removes the loaded one). The game records `config.chipSetId`; `Setup.fromGame` reloads that set's latest colours if it still exists, otherwise it starts a new set from the game's colours. A first game with no history uses `S.lastChipSet()`. Chip values are stored in chips, so a set doesn't change when the rate does. Drafts saved before this get a new `chipSetId` on render.
 - Draft extras: `more` (which tab shows), `pickSeats`. The two tabs never repeat a setting: players and colours only on Basics; the host picker only under Host fee; the seat editor only moves seated players. A start error switches to the tab that can fix it. Adding a player seats them in the first free seat and grows the table as needed. On start, unless `pickSeats` is on in Detailed mode, everyone is re-seated side by side on the smallest table (6/8/9/10) that fits.
 - **Simple vs Detailed.** `config.mode` decides the play screen. Simple is a player list with a "Buy in" button per row that opens the player panel and "Add player" for late joiners (seat = next index, `config.seats` grows to fit); counting is a list too. Detailed shows the table, hands and seat moves. Seats still exist in Simple mode, only for ordering.
@@ -80,7 +81,7 @@ Quirks of this setup:
 ## Status
 
 ### Done (verified by unit tests and the e2e smoke test)
-- [x] Setup: one screen, two tabs. Basics: the buy-in rate ("N chips = money", with the nearest valid chip count suggested), the host's own chip set (colours, values and how many of each the house owns; named, saved as you type and picked again next game) and the players (saved players as toggles). More options, all on one page and all off for a new game: Detailed mode, fixed buy-ins, chip-leader cap, host fee (with the host picker), blinds timer, choose seats (Detailed only; moves players between seats). Quick start from the last game keeps its extras.
+- [x] Setup: one screen, two tabs. Basics: the buy-in rate ("N chips = money", with the nearest valid chip count suggested), the host's own chip set (each colour is a chip you tap to recolour, with −/+ steppers for its value and how many the house owns; hold to speed up; named, saved as you type and picked again next game) and the players (saved players as toggles). More options, all on one page and all off for a new game: Detailed mode, fixed buy-ins, chip-leader cap, host fee (with the host picker), blinds timer, choose seats (Detailed only; moves players between seats). Quick start from the last game keeps its extras.
 - [x] Simple mode: player list with buy-ins, a "Buy in" button per row (opens the panel), add player, list counting. Detailed mode: the table.
 - [x] Chips only during the game; money only in setup and results.
 - [x] Table (Detailed mode):

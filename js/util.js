@@ -36,6 +36,50 @@
   };
   U.clear = el => { while (el.firstChild) el.removeChild(el.firstChild); return el; };
 
+  /* A poker chip drawn in CSS: the colour with edge inserts and an inner ring. Light chips get dark inserts so they still show. */
+  U.chip = function (color, cls) {
+    const el = U.h('span', { class: 'swatch' + (cls ? ' ' + cls : ''), 'aria-hidden': 'true' });
+    U.setChip(el, color);
+    return el;
+  };
+  U.setChip = function (el, color) {
+    const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(color || '');
+    const lum = m ? (0.299 * parseInt(m[1], 16) + 0.587 * parseInt(m[2], 16) + 0.114 * parseInt(m[3], 16)) / 255 : 0;
+    el.style.setProperty('--c', color);
+    el.style.setProperty('--ins', lum > 0.75 ? 'rgba(0,0,0,.28)' : 'rgba(255,255,255,.9)');
+  };
+
+  /* A −/+ button that repeats while held. A tap steps by 1; holding repeats and the step grows to 10, then 100,
+     snapping to round numbers on the way. onStep(d) gets the signed step; it returns false to stop. */
+  U.hold = function (sign, onStep, props) {
+    let timer = null, ticks = 0;
+    const stop = () => { clearTimeout(timer); timer = null; };
+    const step = () => {
+      const size = ticks < 8 ? 1 : ticks < 24 ? 10 : 100;
+      ticks++;
+      if (onStep(sign * size) === false) stop();
+    };
+    const loop = () => { step(); timer = setTimeout(loop, 70); };
+    const btn = U.h('button', Object.assign({
+      class: 'round-btn', type: 'button', 'aria-label': sign > 0 ? '+' : '−',
+      onpointerdown: e => {
+        if (e.button) return;
+        ticks = 0; stop(); step();
+        timer = setTimeout(loop, 400);
+      },
+      onpointerup: stop, onpointerleave: stop, onpointercancel: stop,
+      oncontextmenu: e => e.preventDefault(),
+      /* a pointer press already stepped; keyboard presses arrive as a click with detail 0 */
+      onclick: e => { if (e.detail === 0) { ticks = 0; step(); } },
+    }, props || {}), sign > 0 ? '+' : '−');
+    return btn;
+  };
+  /* v moved by a step d, landing on a multiple of |d| (so holding goes 137 → 140 → 150) */
+  U.snap = (v, d) => {
+    const s = Math.abs(d);
+    return d > 0 ? Math.floor(v / s) * s + s : Math.ceil(v / s) * s - s;
+  };
+
   /* Bottom sheet. build(api) returns content; api.refresh() rebuilds it. */
   U.sheet = function (build, opts) {
     opts = opts || {};
